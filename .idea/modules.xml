@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/hudi-0.12.0-my.iml" filepath="$PROJECT_DIR$/.idea/hudi-0.12.0-my.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-sync/hudi-adb-sync/hudi-adb-sync.iml" filepath="$PROJECT_DIR$/hudi-sync/hudi-adb-sync/hudi-adb-sync.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-cli/hudi-cli.iml" filepath="$PROJECT_DIR$/hudi-cli/hudi-cli.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-client/hudi-client.iml" filepath="$PROJECT_DIR$/hudi-client/hudi-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-client/hudi-client-common/hudi-client-common.iml" filepath="$PROJECT_DIR$/hudi-client/hudi-client-common/hudi-client-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-common/hudi-common.iml" filepath="$PROJECT_DIR$/hudi-common/hudi-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-sync/hudi-datahub-sync/hudi-datahub-sync.iml" filepath="$PROJECT_DIR$/hudi-sync/hudi-datahub-sync/hudi-datahub-sync.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-examples/hudi-examples.iml" filepath="$PROJECT_DIR$/hudi-examples/hudi-examples.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-examples/hudi-examples-common/hudi-examples-common.iml" filepath="$PROJECT_DIR$/hudi-examples/hudi-examples-common/hudi-examples-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-examples/hudi-examples-flink/hudi-examples-flink.iml" filepath="$PROJECT_DIR$/hudi-examples/hudi-examples-flink/hudi-examples-flink.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-examples/hudi-examples-java/hudi-examples-java.iml" filepath="$PROJECT_DIR$/hudi-examples/hudi-examples-java/hudi-examples-java.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-examples/hudi-examples-spark/hudi-examples-spark.iml" filepath="$PROJECT_DIR$/hudi-examples/hudi-examples-spark/hudi-examples-spark.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-flink-datasource/hudi-flink/hudi-flink.iml" filepath="$PROJECT_DIR$/hudi-flink-datasource/hudi-flink/hudi-flink.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-client/hudi-flink-client/hudi-flink-client.iml" filepath="$PROJECT_DIR$/hudi-client/hudi-flink-client/hudi-flink-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-flink-datasource/hudi-flink-datasource.iml" filepath="$PROJECT_DIR$/hudi-flink-datasource/hudi-flink-datasource.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-flink-bundle/hudi-flink1.13-bundle.iml" filepath="$PROJECT_DIR$/packaging/hudi-flink-bundle/hudi-flink1.13-bundle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-flink-datasource/hudi-flink1.13.x/hudi-flink1.13.x.iml" filepath="$PROJECT_DIR$/hudi-flink-datasource/hudi-flink1.13.x/hudi-flink1.13.x.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-flink-datasource/hudi-flink1.14.x/hudi-flink1.14.x.iml" filepath="$PROJECT_DIR$/hudi-flink-datasource/hudi-flink1.14.x/hudi-flink1.14.x.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-flink-datasource/hudi-flink1.15.x/hudi-flink1.15.x.iml" filepath="$PROJECT_DIR$/hudi-flink-datasource/hudi-flink1.15.x/hudi-flink1.15.x.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-hadoop-mr/hudi-hadoop-mr.iml" filepath="$PROJECT_DIR$/hudi-hadoop-mr/hudi-hadoop-mr.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-hadoop-mr-bundle/hudi-hadoop-mr-bundle.iml" filepath="$PROJECT_DIR$/packaging/hudi-hadoop-mr-bundle/hudi-hadoop-mr-bundle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-sync/hudi-hive-sync/hudi-hive-sync.iml" filepath="$PROJECT_DIR$/hudi-sync/hudi-hive-sync/hudi-hive-sync.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-hive-sync-bundle/hudi-hive-sync-bundle.iml" filepath="$PROJECT_DIR$/packaging/hudi-hive-sync-bundle/hudi-hive-sync-bundle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-client/hudi-java-client/hudi-java-client.iml" filepath="$PROJECT_DIR$/hudi-client/hudi-java-client/hudi-java-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-kafka-connect/hudi-kafka-connect.iml" filepath="$PROJECT_DIR$/hudi-kafka-connect/hudi-kafka-connect.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-kafka-connect-bundle/hudi-kafka-connect-bundle.iml" filepath="$PROJECT_DIR$/packaging/hudi-kafka-connect-bundle/hudi-kafka-connect-bundle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-presto-bundle/hudi-presto-bundle.iml" filepath="$PROJECT_DIR$/packaging/hudi-presto-bundle/hudi-presto-bundle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-spark-bundle/hudi-spark-bundle_2.11.iml" filepath="$PROJECT_DIR$/packaging/hudi-spark-bundle/hudi-spark-bundle_2.11.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-client/hudi-spark-client/hudi-spark-client.iml" filepath="$PROJECT_DIR$/hudi-client/hudi-spark-client/hudi-spark-client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-spark-datasource/hudi-spark-common/hudi-spark-common_2.11.iml" filepath="$PROJECT_DIR$/hudi-spark-datasource/hudi-spark-common/hudi-spark-common_2.11.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-spark-datasource/hudi-spark-datasource.iml" filepath="$PROJECT_DIR$/hudi-spark-datasource/hudi-spark-datasource.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-spark-datasource/hudi-spark2-common/hudi-spark2-common.iml" filepath="$PROJECT_DIR$/hudi-spark-datasource/hudi-spark2-common/hudi-spark2-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-spark-datasource/hudi-spark2/hudi-spark2_2.11.iml" filepath="$PROJECT_DIR$/hudi-spark-datasource/hudi-spark2/hudi-spark2_2.11.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-spark-datasource/hudi-spark/hudi-spark_2.11.iml" filepath="$PROJECT_DIR$/hudi-spark-datasource/hudi-spark/hudi-spark_2.11.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-sync/hudi-sync.iml" filepath="$PROJECT_DIR$/hudi-sync/hudi-sync.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-sync/hudi-sync-common/hudi-sync-common.iml" filepath="$PROJECT_DIR$/hudi-sync/hudi-sync-common/hudi-sync-common.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-timeline-server-bundle/hudi-timeline-server-bundle.iml" filepath="$PROJECT_DIR$/packaging/hudi-timeline-server-bundle/hudi-timeline-server-bundle.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-timeline-service/hudi-timeline-service.iml" filepath="$PROJECT_DIR$/hudi-timeline-service/hudi-timeline-service.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-utilities-bundle/hudi-utilities-bundle_2.11.iml" filepath="$PROJECT_DIR$/packaging/hudi-utilities-bundle/hudi-utilities-bundle_2.11.iml" />
+      <module fileurl="file://$PROJECT_DIR$/packaging/hudi-utilities-slim-bundle/hudi-utilities-slim-bundle_2.11.iml" filepath="$PROJECT_DIR$/packaging/hudi-utilities-slim-bundle/hudi-utilities-slim-bundle_2.11.iml" />
+      <module fileurl="file://$PROJECT_DIR$/hudi-utilities/hudi-utilities_2.11.iml" filepath="$PROJECT_DIR$/hudi-utilities/hudi-utilities_2.11.iml" />
+    </modules>
+  </component>
+</project>

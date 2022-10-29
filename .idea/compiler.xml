@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="hudi-common" />
+        <module name="hudi-examples-java" />
+        <module name="hudi-spark-bundle_2.11" />
+        <module name="hudi-java-client" />
+        <module name="hudi-hadoop-mr" />
+        <module name="hudi-cli" />
+        <module name="hudi-spark2-common" />
+        <module name="hudi-utilities-slim-bundle_2.11" />
+        <module name="hudi-client-common" />
+        <module name="hudi-utilities_2.11" />
+        <module name="hudi-examples-common" />
+        <module name="hudi-presto-bundle" />
+        <module name="hudi-flink1.13-bundle" />
+        <module name="hudi-examples-spark" />
+        <module name="hudi-spark-common_2.11" />
+        <module name="hudi-spark-client" />
+        <module name="hudi-flink1.14.x" />
+        <module name="hudi-utilities-bundle_2.11" />
+        <module name="hudi-flink-client" />
+        <module name="hudi-flink1.13.x" />
+        <module name="hudi-sync-common" />
+        <module name="hudi-examples-flink" />
+        <module name="hudi-hadoop-mr-bundle" />
+        <module name="hudi-kafka-connect" />
+        <module name="hudi-adb-sync" />
+        <module name="hudi-hive-sync" />
+        <module name="hudi-spark_2.11" />
+        <module name="hudi-flink1.15.x" />
+        <module name="hudi-datahub-sync" />
+        <module name="hudi-hive-sync-bundle" />
+        <module name="hudi-timeline-service" />
+        <module name="hudi-kafka-connect-bundle" />
+        <module name="hudi-spark2_2.11" />
+        <module name="hudi-timeline-server-bundle" />
+        <module name="hudi-flink" />
+      </profile>
+    </annotationProcessing>
+    <bytecodeTargetLevel>
+      <module name="hudi-0.12.0-my" target="1.8" />
+      <module name="hudi-adb-sync" target="1.8" />
+      <module name="hudi-cli" target="1.8" />
+      <module name="hudi-client" target="1.8" />
+      <module name="hudi-client-common" target="1.8" />
+      <module name="hudi-common" target="1.8" />
+      <module name="hudi-datahub-sync" target="1.8" />
+      <module name="hudi-examples" target="1.8" />
+      <module name="hudi-examples-common" target="1.8" />
+      <module name="hudi-examples-flink" target="1.8" />
+      <module name="hudi-examples-java" target="1.8" />
+      <module name="hudi-examples-spark" target="1.8" />
+      <module name="hudi-flink" target="1.8" />
+      <module name="hudi-flink-client" target="1.8" />
+      <module name="hudi-flink-datasource" target="1.8" />
+      <module name="hudi-flink1.13-bundle" target="1.7" />
+      <module name="hudi-flink1.13.x" target="1.8" />
+      <module name="hudi-flink1.14.x" target="1.8" />
+      <module name="hudi-flink1.15.x" target="1.8" />
+      <module name="hudi-hadoop-mr" target="1.8" />
+      <module name="hudi-hadoop-mr-bundle" target="1.8" />
+      <module name="hudi-hive-sync" target="1.8" />
+      <module name="hudi-hive-sync-bundle" target="1.8" />
+      <module name="hudi-java-client" target="1.8" />
+      <module name="hudi-kafka-connect" target="1.8" />
+      <module name="hudi-kafka-connect-bundle" target="1.8" />
+      <module name="hudi-presto-bundle" target="1.8" />
+      <module name="hudi-spark-bundle_2.11" target="1.8" />
+      <module name="hudi-spark-client" target="1.8" />
+      <module name="hudi-spark-common_2.11" target="1.8" />
+      <module name="hudi-spark-datasource" target="1.8" />
+      <module name="hudi-spark2-common" target="1.8" />
+      <module name="hudi-spark2_2.11" target="1.8" />
+      <module name="hudi-spark_2.11" target="1.8" />
+      <module name="hudi-sync" target="1.8" />
+      <module name="hudi-sync-common" target="1.8" />
+      <module name="hudi-timeline-server-bundle" target="1.8" />
+      <module name="hudi-timeline-service" target="1.8" />
+      <module name="hudi-utilities-bundle_2.11" target="1.8" />
+      <module name="hudi-utilities-slim-bundle_2.11" target="1.8" />
+      <module name="hudi-utilities_2.11" target="1.8" />
+    </bytecodeTargetLevel>
+  </component>
+</project>

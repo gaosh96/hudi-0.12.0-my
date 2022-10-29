@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ScalaCompilerConfiguration">
+    <profile name="Maven 1" modules="hudi-client-common,hudi-examples-common,hudi-examples-java,hudi-examples-spark,hudi-flink-client,hudi-spark-client" />
+    <profile name="Maven 2" modules="hudi-spark-common_2.11,hudi-spark_2.11">
+      <parameters>
+        <parameter value="-nobootcp" />
+        <parameter value="-target:jvm-1.8" />
+      </parameters>
+    </profile>
+    <profile name="Maven 3" modules="hudi-cli,hudi-spark2_2.11">
+      <parameters>
+        <parameter value="-nobootcp" />
+      </parameters>
+    </profile>
+  </component>
+</project>

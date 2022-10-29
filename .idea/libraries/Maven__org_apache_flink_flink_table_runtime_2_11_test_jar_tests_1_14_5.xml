@@ -1,0 +1,13 @@
+<component name="libraryTable">
+  <library name="Maven: org.apache.flink:flink-table-runtime_2.11:test-jar:tests:1.14.5">
+    <CLASSES>
+      <root url="jar://$USER_HOME$/maven_repos/org/apache/flink/flink-table-runtime_2.11/1.14.5/flink-table-runtime_2.11-1.14.5-tests.jar!/" />
+    </CLASSES>
+    <JAVADOC>
+      <root url="jar://$USER_HOME$/maven_repos/org/apache/flink/flink-table-runtime_2.11/1.14.5/flink-table-runtime_2.11-1.14.5-test-javadoc.jar!/" />
+    </JAVADOC>
+    <SOURCES>
+      <root url="jar://$USER_HOME$/maven_repos/org/apache/flink/flink-table-runtime_2.11/1.14.5/flink-table-runtime_2.11-1.14.5-test-sources.jar!/" />
+    </SOURCES>
+  </library>
+</component>
