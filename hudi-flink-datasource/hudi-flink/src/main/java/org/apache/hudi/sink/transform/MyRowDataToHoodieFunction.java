@@ -120,9 +120,6 @@ public class MyRowDataToHoodieFunction<I extends RowData, O extends HoodieRecord
   @SuppressWarnings("unchecked")
   @Override
   public O map(I i) throws Exception {
-
-    LOG.info("record: {}", i);
-
     return (O) toHoodieRecord(i);
   }
 
@@ -137,6 +134,7 @@ public class MyRowDataToHoodieFunction<I extends RowData, O extends HoodieRecord
   private HoodieRecord toHoodieRecord(I record) throws Exception {
     GenericRecord gr = (GenericRecord) this.converter.convert(this.avroSchema, record);
     final HoodieKey hoodieKey = keyGenerator.getKey(gr);
+    LOG.info("hoodie key: {}", hoodieKey);
 
     HoodieRecordPayload payload = payloadCreation.createPayload(gr);
     HoodieOperation operation = HoodieOperation.fromValue(record.getRowKind().toByteValue());

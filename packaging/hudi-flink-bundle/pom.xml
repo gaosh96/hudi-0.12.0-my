@@ -163,6 +163,9 @@
                   <include>org.apache.htrace:htrace-core4</include>
                   <include>commons-codec:commons-codec</include>
                   <include>commons-io:commons-io</include>
+                  <include>commons-cli:commons-cli</include>
+                  <include>com.ctrip.framework.apollo:apollo-client</include>
+                  <include>com.ctrip.framework.apollo:apollo-core</include>
                 </includes>
               </artifactSet>
               <relocations>
@@ -504,6 +507,19 @@
       <!-- Override the version to be same with Flink avro -->
       <version>1.10.0</version>
       <scope>compile</scope>
+    </dependency>
+
+    <!-- Apollo -->
+    <dependency>
+      <groupId>com.ctrip.framework.apollo</groupId>
+      <artifactId>apollo-client</artifactId>
+      <version>2.0.1</version>
+    </dependency>
+
+    <dependency>
+      <groupId>com.ctrip.framework.apollo</groupId>
+      <artifactId>apollo-core</artifactId>
+      <version>2.0.1</version>
     </dependency>
 
     <!-- Hive -->

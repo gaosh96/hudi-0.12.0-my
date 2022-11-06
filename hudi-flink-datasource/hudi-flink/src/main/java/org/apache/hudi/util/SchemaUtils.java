@@ -2,14 +2,10 @@ package org.apache.hudi.util;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.parser.Feature;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.table.data.TimestampData;
-import org.apache.flink.table.types.logical.BigIntType;
-import org.apache.flink.table.types.logical.DecimalType;
-import org.apache.flink.table.types.logical.IntType;
-import org.apache.flink.table.types.logical.LogicalType;
-import org.apache.flink.table.types.logical.RowType;
-import org.apache.flink.table.types.logical.VarCharType;
+import org.apache.flink.table.types.logical.*;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -32,18 +28,18 @@ public class SchemaUtils {
 
 
     public static RowType parseTableRowType(String schema) {
-        JSONObject fields = JSON.parseObject(schema);
+        JSONObject fields = JSON.parseObject(schema, Feature.OrderedField);
         String[] fieldNames = fields.keySet().toArray(new String[]{});
         LogicalType[] logicalTypes = new LogicalType[fieldNames.length];
 
         for (int i = 0; i < fieldNames.length; i++) {
             String type = fields.getString(fieldNames[i]);
-            logicalTypes[i] = getFieldLogicalType(type);
+            logicalTypes[i] = getFieldLogicalType(type.toLowerCase());
         }
 
-        return RowType.of(logicalTypes, fieldNames);
+        // set nullable to false
+        return RowType.of(false, logicalTypes, fieldNames);
     }
-
 
     private static LogicalType getFieldLogicalType(String type) {
 
@@ -52,6 +48,10 @@ public class SchemaUtils {
         if (type.contains("decimal")) {
             Tuple2<Integer, Integer> decimalInfo = getDecimalInfo(type);
             return new DecimalType(decimalInfo.f0, decimalInfo.f1);
+        }
+
+        if (type.contains("timestamp")) {
+            return new TimestampType(0);
         }
 
         switch (type) {

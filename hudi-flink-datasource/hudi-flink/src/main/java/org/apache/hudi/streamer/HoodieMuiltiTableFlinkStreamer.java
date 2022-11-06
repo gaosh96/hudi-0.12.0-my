@@ -34,6 +34,8 @@ import org.apache.hudi.common.model.HoodieRecord;
 import org.apache.hudi.common.util.Option;
 import org.apache.hudi.configuration.FlinkOptions;
 import org.apache.hudi.configuration.OptionsResolver;
+import org.apache.hudi.keygen.TimestampBasedAvroKeyGenerator;
+import org.apache.hudi.keygen.constant.KeyGeneratorOptions;
 import org.apache.hudi.sink.transform.MyRowDataToHoodieFunction;
 import org.apache.hudi.sink.transform.Transformer;
 import org.apache.hudi.sink.utils.Pipelines;
@@ -90,6 +92,19 @@ public class HoodieMuiltiTableFlinkStreamer {
 
     // set avro schema
     conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, AvroSchemaConverter.convertToSchema(rowType).toString());
+
+    // set keygen to TimestampBasedAvroKeyGenerator
+    conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
+
+    conf.setString(KeyGeneratorOptions.RECORDKEY_FIELD_NAME.key(), conf.getString(FlinkOptions.RECORD_KEY_FIELD));
+    conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
+    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+
+    conf.setString(FlinkOptions.INDEX_KEY_FIELD, conf.getString(FlinkOptions.RECORD_KEY_FIELD));
+
+    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
+    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TIMEZONE_FORMAT_PROP, "Asia/Shanghai");
 
     DataStream<String> kafkaStringDataStream = env.addSource(new FlinkKafkaConsumer<>(
                     cfg.kafkaTopic,
