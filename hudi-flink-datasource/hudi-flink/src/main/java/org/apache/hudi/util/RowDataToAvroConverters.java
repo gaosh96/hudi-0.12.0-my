@@ -166,7 +166,9 @@ public class RowDataToAvroConverters {
 
                 @Override
                 public Object convert(Schema schema, Object object) {
-                  return ((TimestampData) object).toInstant().toEpochMilli();
+                  //return ((TimestampData) object).toInstant().toEpochMilli();
+                  // minus 8 hours
+                  return ((TimestampData) object).toInstant().minusSeconds(8 * 60 * 60).toEpochMilli();
                 }
               };
         } else if (precision <= 6) {
@@ -176,7 +178,9 @@ public class RowDataToAvroConverters {
 
                 @Override
                 public Object convert(Schema schema, Object object) {
-                  return ChronoUnit.MICROS.between(Instant.EPOCH, ((TimestampData) object).toInstant());
+                  //return ChronoUnit.MICROS.between(Instant.EPOCH, ((TimestampData) object).toInstant());
+                    // minus 8 hours
+                    return ChronoUnit.MICROS.between(Instant.EPOCH, ((TimestampData) object).toInstant().minusSeconds(8 * 60 * 60));
                 }
               };
         } else {

@@ -53,83 +53,85 @@ import org.slf4j.LoggerFactory;
  */
 public class HoodieMuiltiTableFlinkStreamer {
 
-  private static final Logger LOG = LoggerFactory.getLogger(MyRowDataToHoodieFunction.class);
+    private static final Logger LOG = LoggerFactory.getLogger(MyRowDataToHoodieFunction.class);
 
-  public static void main(String[] args) throws Exception {
-    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    public static void main(String[] args) throws Exception {
+        StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
 
-    final FlinkStreamerConfig cfg = new FlinkStreamerConfig();
-    JCommander cmd = new JCommander(cfg, null, args);
-    if (cfg.help || args.length == 0) {
-      cmd.usage();
-      System.exit(1);
+        final FlinkStreamerConfig cfg = new FlinkStreamerConfig();
+        JCommander cmd = new JCommander(cfg, null, args);
+        if (cfg.help || args.length == 0) {
+            cmd.usage();
+            System.exit(1);
+        }
+        env.enableCheckpointing(cfg.checkpointInterval);
+        env.getConfig().setGlobalJobParameters(cfg);
+        // We use checkpoint to trigger write operation, including instant generating and committing,
+        // There can only be one checkpoint at one time.
+        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+
+        env.setStateBackend(cfg.stateBackend);
+        if (cfg.flinkCheckPointPath != null) {
+            env.getCheckpointConfig().setCheckpointStorage(cfg.flinkCheckPointPath);
+        }
+
+        TypedProperties kafkaProps = DFSPropertiesConfiguration.getGlobalProps();
+        kafkaProps.putAll(StreamerUtil.appendKafkaProps(cfg));
+
+        // get rowtype from apollo config
+        Config appConfig = ConfigService.getAppConfig();
+        String schema = appConfig.getProperty(cfg.apolloConfigKey, "");
+        LOG.info("apollo schema: {}", schema);
+
+        RowType rowType = SchemaUtils.parseTableRowType(schema);
+
+        Configuration conf = FlinkStreamerConfig.toFlinkConfig(cfg);
+        long ckpTimeout = env.getCheckpointConfig().getCheckpointTimeout();
+        int parallelism = env.getParallelism();
+        conf.setLong(FlinkOptions.WRITE_COMMIT_ACK_TIMEOUT, ckpTimeout);
+
+        // set avro schema
+        conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, AvroSchemaConverter.convertToSchema(rowType).toString());
+
+        // set keygen to TimestampBasedAvroKeyGenerator
+        conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
+
+        conf.setString(KeyGeneratorOptions.RECORDKEY_FIELD_NAME.key(), conf.getString(FlinkOptions.RECORD_KEY_FIELD));
+        conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+
+        conf.setString(FlinkOptions.INDEX_KEY_FIELD, conf.getString(FlinkOptions.RECORD_KEY_FIELD));
+
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TIMEZONE_FORMAT_PROP, "Asia/Shanghai");
+        // java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
+        //conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, HiveStylePartitionValueExtractor.class.getCanonicalName());
+
+        DataStream<String> kafkaStringDataStream = env.addSource(new FlinkKafkaConsumer<>(
+                        cfg.kafkaTopic,
+                        new SimpleStringSchema(),
+                        kafkaProps
+                )).name("kafka_source")
+                .uid("uid_kafka_source");
+
+        DataStream<RowData> dataStream = kafkaStringDataStream.map(new StringToRowDataMapFunction(cfg.apolloConfigKey));
+
+        if (cfg.transformerClassNames != null && !cfg.transformerClassNames.isEmpty()) {
+            Option<Transformer> transformer = StreamerUtil.createTransformer(cfg.transformerClassNames);
+            if (transformer.isPresent()) {
+                dataStream = transformer.get().apply(dataStream);
+            }
+        }
+
+        DataStream<HoodieRecord> hoodieRecordDataStream = Pipelines.bootstrap(conf, rowType, parallelism, dataStream);
+        DataStream<Object> pipeline = Pipelines.hoodieStreamWrite(conf, parallelism, hoodieRecordDataStream);
+        if (OptionsResolver.needsAsyncCompaction(conf)) {
+            Pipelines.compact(conf, pipeline);
+        } else {
+            Pipelines.clean(conf, pipeline);
+        }
+
+        env.execute(cfg.targetTableName);
     }
-    env.enableCheckpointing(cfg.checkpointInterval);
-    env.getConfig().setGlobalJobParameters(cfg);
-    // We use checkpoint to trigger write operation, including instant generating and committing,
-    // There can only be one checkpoint at one time.
-    env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
-
-    env.setStateBackend(cfg.stateBackend);
-    if (cfg.flinkCheckPointPath != null) {
-      env.getCheckpointConfig().setCheckpointStorage(cfg.flinkCheckPointPath);
-    }
-
-    TypedProperties kafkaProps = DFSPropertiesConfiguration.getGlobalProps();
-    kafkaProps.putAll(StreamerUtil.appendKafkaProps(cfg));
-
-    // get rowtype from apollo config
-    Config appConfig = ConfigService.getAppConfig();
-    String schema = appConfig.getProperty(cfg.apolloConfigKey, "");
-    LOG.info("apollo schema: {}", schema);
-
-    RowType rowType = SchemaUtils.parseTableRowType(schema);
-
-    Configuration conf = FlinkStreamerConfig.toFlinkConfig(cfg);
-    long ckpTimeout = env.getCheckpointConfig().getCheckpointTimeout();
-    int parallelism = env.getParallelism();
-    conf.setLong(FlinkOptions.WRITE_COMMIT_ACK_TIMEOUT, ckpTimeout);
-
-    // set avro schema
-    conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, AvroSchemaConverter.convertToSchema(rowType).toString());
-
-    // set keygen to TimestampBasedAvroKeyGenerator
-    conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
-
-    conf.setString(KeyGeneratorOptions.RECORDKEY_FIELD_NAME.key(), conf.getString(FlinkOptions.RECORD_KEY_FIELD));
-    conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
-    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
-
-    conf.setString(FlinkOptions.INDEX_KEY_FIELD, conf.getString(FlinkOptions.RECORD_KEY_FIELD));
-
-    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
-    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
-    conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TIMEZONE_FORMAT_PROP, "Asia/Shanghai");
-
-    DataStream<String> kafkaStringDataStream = env.addSource(new FlinkKafkaConsumer<>(
-                    cfg.kafkaTopic,
-                    new SimpleStringSchema(),
-                    kafkaProps
-            )).name("kafka_source")
-            .uid("uid_kafka_source");
-
-    DataStream<RowData> dataStream = kafkaStringDataStream.map(new StringToRowDataMapFunction(cfg.apolloConfigKey));
-
-    if (cfg.transformerClassNames != null && !cfg.transformerClassNames.isEmpty()) {
-      Option<Transformer> transformer = StreamerUtil.createTransformer(cfg.transformerClassNames);
-      if (transformer.isPresent()) {
-        dataStream = transformer.get().apply(dataStream);
-      }
-    }
-
-    DataStream<HoodieRecord> hoodieRecordDataStream = Pipelines.bootstrap(conf, rowType, parallelism, dataStream);
-    DataStream<Object> pipeline = Pipelines.hoodieStreamWrite(conf, parallelism, hoodieRecordDataStream);
-    if (OptionsResolver.needsAsyncCompaction(conf)) {
-      Pipelines.compact(conf, pipeline);
-    } else {
-      Pipelines.clean(conf, pipeline);
-    }
-
-    env.execute(cfg.targetTableName);
-  }
 }
