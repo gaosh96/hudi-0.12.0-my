@@ -18,6 +18,9 @@
 
 package org.apache.hudi.sink.bucket;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.parser.Feature;
 import com.ctrip.framework.apollo.Config;
 import com.ctrip.framework.apollo.ConfigChangeListener;
 import com.ctrip.framework.apollo.ConfigService;
@@ -105,14 +108,21 @@ public class BucketStreamWriteFunction<I> extends StreamWriteFunction<I> {
     appConfig.addChangeListener(event -> {
       if (event.isChanged(apolloConfigKey)) {
         String schema = appConfig.getProperty(apolloConfigKey, "");
-        RowType rowType = SchemaUtils.parseTableRowType(schema);
+
+        // for multiple table
+        JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
+        JSONArray fields = obj.getJSONArray("fields");
+        RowType rowType = SchemaUtils.parseTableRowType(fields);
+
+        // for simple table
+        //RowType rowType = SchemaUtils.parseTableRowType(schema);
+
         Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
         config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
-        // riteClient
+        // writeClient
         writeClient = StreamerUtil.createWriteClient(config, getRuntimeContext());
       }
     });
-
 
   }
 

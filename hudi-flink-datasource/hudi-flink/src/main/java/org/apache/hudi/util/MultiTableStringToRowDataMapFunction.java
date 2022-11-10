@@ -19,9 +19,8 @@ import org.apache.flink.types.RowKind;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 /**
  * @author gaosh
@@ -34,9 +33,11 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
 
     private final String schemaApolloConfigKey;
 
-    private String[] fieldNames;
+    private List<String> fieldNames;
 
     private List<String> fieldTypes;
+
+    private String partitionFieldName;
 
     public MultiTableStringToRowDataMapFunction(String schemaApolloConfigKey) {
         this.schemaApolloConfigKey = schemaApolloConfigKey;
@@ -56,7 +57,7 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
                     // update fieldNames and fieldTypes
                     handleFieldInfo(schema);
 
-                    LOG.info("update fieldNames: {}", Arrays.toString(fieldNames));
+                    LOG.info("update fieldNames: {}", fieldNames);
                     LOG.info("update fieldTypes: {}", fieldTypes);
                 }
             }
@@ -66,18 +67,22 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
     @Override
     public RowData map(String value) throws Exception {
 
-        GenericRowData rowData = new GenericRowData(fieldNames.length);
+        GenericRowData rowData = new GenericRowData(fieldNames.size());
         JSONObject record = JSON.parseObject(value, Feature.OrderedField);
 
         // op
         String op = record.getString("op");
         setRecordRowKind(rowData, op);
 
-        for (int i = 0; i < fieldNames.length; i++) {
-            setFieldValue(rowData, record, i, fieldNames[i], fieldTypes.get(i));
+        for (int i = 0; i < fieldNames.size() - 1; i++) {
+            setFieldValue(rowData, record, i, fieldNames.get(i), fieldTypes.get(i));
         }
 
+        // set partition field value
+        rowData.setField(fieldNames.size() - 1, StringData.fromString(record.getString(partitionFieldName)));
+
         LOG.info("rowData: {}", rowData);
+
         return rowData;
     }
 
@@ -122,13 +127,19 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
     }
 
     private void handleFieldInfo(String tableConfig) {
-        JSONArray fields = JSON.parseObject(tableConfig, Feature.OrderedField).getJSONArray("fields");
+        JSONObject config = JSON.parseObject(tableConfig, Feature.OrderedField);
+        JSONArray fields = config.getJSONArray("fields");
 
+        fieldNames = new ArrayList<>();
+        fieldTypes = new ArrayList<>();
 
+        for(int i = 0; i < fields.size(); i ++) {
+            JSONObject obj = (JSONObject) fields.get(i);
+            fieldNames.set(i, obj.getString("name"));
+            fieldTypes.set(i, obj.getString("type"));
+        }
 
-
-        fieldNames = fields.keySet().toArray(new String[]{});
-        fieldTypes = fields.values().stream().map(String::valueOf).collect(Collectors.toList());
+        partitionFieldName = config.getJSONObject("hudi_config").getString("hudi_partition_field");
     }
 
 }
