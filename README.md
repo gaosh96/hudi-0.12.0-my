@@ -132,3 +132,14 @@ flink run -d -t yarn-per-job -ys 2 -ynm hudi-test -c org.apache.hudi.streamer.Ho
     }
 }
 ```
+
+### HoodieMuiltiTableFlinkStreamerWithApollo
+```
+flink run -d -t yarn-per-job \
+-ynm hudi-test \
+-c org.apache.hudi.streamer.HoodieMuiltiTableFlinkStreamerWithApollo \
+./hudi-flink1.13-bundle-0.12.0.jar \
+--checkpoint-interval 10000 \
+--flink-state-backend-type rocksdb \
+--apollo-config-key mscrpt.invest_info5.config
+```
