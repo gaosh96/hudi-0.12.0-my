@@ -18,14 +18,18 @@
 
 package org.apache.hudi.streamer;
 
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.parser.Feature;
 import com.beust.jcommander.JCommander;
 import com.ctrip.framework.apollo.Config;
 import com.ctrip.framework.apollo.ConfigService;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
+import org.apache.flink.connector.kafka.source.KafkaSourceOptions;
 import org.apache.flink.streaming.api.datastream.DataStream;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.connectors.kafka.FlinkKafkaConsumer;
+import org.apache.flink.streaming.connectors.kafka.table.KafkaConnectorOptions;
 import org.apache.flink.table.data.RowData;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.hudi.common.config.DFSPropertiesConfiguration;
@@ -34,24 +38,30 @@ import org.apache.hudi.common.model.HoodieRecord;
 import org.apache.hudi.common.util.Option;
 import org.apache.hudi.configuration.FlinkOptions;
 import org.apache.hudi.configuration.OptionsResolver;
+import org.apache.hudi.hive.HiveStylePartitionValueExtractor;
 import org.apache.hudi.keygen.TimestampBasedAvroKeyGenerator;
 import org.apache.hudi.keygen.constant.KeyGeneratorOptions;
 import org.apache.hudi.sink.transform.MyRowDataToHoodieFunction;
 import org.apache.hudi.sink.transform.Transformer;
 import org.apache.hudi.sink.utils.Pipelines;
 import org.apache.hudi.util.AvroSchemaConverter;
+import org.apache.hudi.util.MultiTableStringToRowDataMapFunction;
 import org.apache.hudi.util.SchemaUtils;
 import org.apache.hudi.util.StreamerUtil;
 import org.apache.hudi.util.StringToRowDataMapFunction;
+import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.apache.kafka.clients.producer.ProducerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Properties;
 
 /**
  * A utility which can incrementally consume data from Kafka and apply it to the target table.
  * It has the similar functionality with SQL data source except that the source is bind to Kafka
  * and the format is bind to JSON.
  */
-public class HoodieMuiltiTableFlinkStreamer {
+public class HoodieMuiltiTableFlinkStreamerWithApollo {
 
     private static final Logger LOG = LoggerFactory.getLogger(MyRowDataToHoodieFunction.class);
 
@@ -64,6 +74,7 @@ public class HoodieMuiltiTableFlinkStreamer {
             cmd.usage();
             System.exit(1);
         }
+
         env.enableCheckpointing(cfg.checkpointInterval);
         env.getConfig().setGlobalJobParameters(cfg);
         // We use checkpoint to trigger write operation, including instant generating and committing,
@@ -75,47 +86,29 @@ public class HoodieMuiltiTableFlinkStreamer {
             env.getCheckpointConfig().setCheckpointStorage(cfg.flinkCheckPointPath);
         }
 
-        TypedProperties kafkaProps = DFSPropertiesConfiguration.getGlobalProps();
-        kafkaProps.putAll(StreamerUtil.appendKafkaProps(cfg));
-
-        // get rowtype from apollo config
-        Config appConfig = ConfigService.getAppConfig();
-        String schema = appConfig.getProperty(cfg.apolloConfigKey, "");
-        LOG.info("apollo schema: {}", schema);
-
-        RowType rowType = SchemaUtils.parseTableRowType(schema);
-
         Configuration conf = FlinkStreamerConfig.toFlinkConfig(cfg);
         long ckpTimeout = env.getCheckpointConfig().getCheckpointTimeout();
         int parallelism = env.getParallelism();
         conf.setLong(FlinkOptions.WRITE_COMMIT_ACK_TIMEOUT, ckpTimeout);
 
-        // set avro schema
-        conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, AvroSchemaConverter.convertToSchema(rowType).toString());
+        Config appConfig = ConfigService.getAppConfig();
+        String[] apolloConfigKeys = cfg.apolloConfigKey.split(",");
 
-        // set keygen to TimestampBasedAvroKeyGenerator
-        conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
+        for (String apolloConfigKey : apolloConfigKeys) {
+            String config = appConfig.getProperty(apolloConfigKey, "");
+            JSONObject obj = JSONObject.parseObject(config, Feature.OrderedField);
+            RowType rowType = SchemaUtils.parseTableRowType(obj.getJSONArray("fields"));
 
-        conf.setString(KeyGeneratorOptions.RECORDKEY_FIELD_NAME.key(), conf.getString(FlinkOptions.RECORD_KEY_FIELD));
-        conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+            LOG.info("rowType: {}", rowType);
 
-        conf.setString(FlinkOptions.INDEX_KEY_FIELD, conf.getString(FlinkOptions.RECORD_KEY_FIELD));
+            // init kafka config
+            DataStream<String> kafkaStringDataStream = initKafkaConfig(env, obj.getJSONObject("kafka_config"));
+            DataStream<RowData> dataStream = kafkaStringDataStream.map(new MultiTableStringToRowDataMapFunction(cfg.apolloConfigKey));
 
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TIMEZONE_FORMAT_PROP, "Asia/Shanghai");
-        // java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
-        //conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, HiveStylePartitionValueExtractor.class.getCanonicalName());
+            // init
+            //cfg = initHudiConfig(cfg, obj);
+        }
 
-        DataStream<String> kafkaStringDataStream = env.addSource(new FlinkKafkaConsumer<>(
-                        cfg.kafkaTopic,
-                        new SimpleStringSchema(),
-                        kafkaProps
-                )).name("kafka_source")
-                .uid("uid_kafka_source");
-
-        DataStream<RowData> dataStream = kafkaStringDataStream.map(new StringToRowDataMapFunction(cfg.apolloConfigKey));
 
         if (cfg.transformerClassNames != null && !cfg.transformerClassNames.isEmpty()) {
             Option<Transformer> transformer = StreamerUtil.createTransformer(cfg.transformerClassNames);
@@ -133,5 +126,50 @@ public class HoodieMuiltiTableFlinkStreamer {
         }
 
         env.execute(cfg.targetTableName);
+    }
+
+    private static DataStream<String> initKafkaConfig(StreamExecutionEnvironment env, JSONObject kafkaConfig) {
+
+        String topic = kafkaConfig.getString("topic");
+        String groupId = kafkaConfig.getString("group_id");
+        String bootstrapServer = kafkaConfig.getString("bootstrap_server");
+
+        Properties kafkaProps = new Properties();
+        kafkaProps.put(ConsumerConfig.GROUP_ID_CONFIG, groupId);
+        kafkaProps.put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServer);
+
+        return env.addSource(new FlinkKafkaConsumer<>(
+                        topic,
+                        new SimpleStringSchema(),
+                        kafkaProps
+                )).name(topic + "_source")
+                .uid(topic + "_source_uid");
+
+    }
+
+    private static Configuration initHudiConfig(Configuration conf, FlinkStreamerConfig cfg, JSONObject obj) {
+
+        // set avro schema
+        conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, AvroSchemaConverter.convertToSchema(rowType).toString());
+
+        // set keygen to TimestampBasedAvroKeyGenerator
+        conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
+
+        conf.setString(KeyGeneratorOptions.RECORDKEY_FIELD_NAME.key(), conf.getString(FlinkOptions.RECORD_KEY_FIELD));
+        conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+
+        conf.setString(FlinkOptions.INDEX_KEY_FIELD, conf.getString(FlinkOptions.RECORD_KEY_FIELD));
+
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
+        // java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
+        conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, HiveStylePartitionValueExtractor.class.getCanonicalName());
+
+        return conf;
+    }
+
+    private static void writeHudi() {
+
     }
 }

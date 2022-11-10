@@ -210,6 +210,7 @@ public class StreamWriteOperatorCoordinator
         conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
 
         try {
+          writeClient.close();
           writeClient = StreamerUtil.createWriteClient(conf);
         } catch (IOException e) {
           e.printStackTrace();

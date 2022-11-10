@@ -18,6 +18,8 @@
 
 package org.apache.hudi.hadoop.realtime;
 
+import org.apache.hadoop.hive.ql.io.IOConstants;
+import org.apache.hadoop.hive.ql.io.IOContext;
 import org.apache.hudi.common.model.HoodieAvroPayload;
 import org.apache.hudi.common.model.HoodiePayloadProps;
 import org.apache.hudi.common.table.HoodieTableMetaClient;
@@ -59,6 +61,11 @@ public abstract class AbstractRealtimeRecordReader {
   public AbstractRealtimeRecordReader(RealtimeSplit split, JobConf job) {
     this.split = split;
     this.jobConf = job;
+
+    LOG.info("jobConf: " + jobConf);
+    LOG.info("schema.evolution.columns: " + jobConf.get(IOConstants.SCHEMA_EVOLUTION_COLUMNS));
+    LOG.info("schema.evolution.columns.types: " + jobConf.get(IOConstants.SCHEMA_EVOLUTION_COLUMNS));
+
     LOG.info("cfg ==> " + job.get(ColumnProjectionUtils.READ_COLUMN_NAMES_CONF_STR));
     LOG.info("columnIds ==> " + job.get(ColumnProjectionUtils.READ_COLUMN_IDS_CONF_STR));
     LOG.info("partitioningColumns ==> " + job.get(hive_metastoreConstants.META_TABLE_PARTITION_COLUMNS, ""));
@@ -87,6 +94,7 @@ public abstract class AbstractRealtimeRecordReader {
    */
   private void init() throws Exception {
     LOG.info("Getting writer schema from table avro schema ");
+    // writerSchema 是旧的schema，不包含新的字段
     writerSchema = new TableSchemaResolver(metaClient).getTableAvroSchema();
 
     // Add partitioning fields to writer schema for resulting row to contain null values for these fields
@@ -95,15 +103,19 @@ public abstract class AbstractRealtimeRecordReader {
         partitionFields.length() > 0 ? Arrays.stream(partitionFields.split("/")).collect(Collectors.toList())
             : new ArrayList<>();
     writerSchema = HoodieRealtimeRecordReaderUtils.addPartitionFields(writerSchema, partitioningFields);
+
     List<String> projectionFields = HoodieRealtimeRecordReaderUtils.orderFields(jobConf.get(ColumnProjectionUtils.READ_COLUMN_NAMES_CONF_STR),
         jobConf.get(ColumnProjectionUtils.READ_COLUMN_IDS_CONF_STR), partitioningFields);
 
     Map<String, Field> schemaFieldsMap = HoodieRealtimeRecordReaderUtils.getNameToFieldMap(writerSchema);
     hiveSchema = constructHiveOrderedSchema(writerSchema, schemaFieldsMap);
+
     // TODO(vc): In the future, the reader schema should be updated based on log files & be able
     // to null out fields not present before
 
-    readerSchema = HoodieRealtimeRecordReaderUtils.generateProjectionSchema(writerSchema, schemaFieldsMap, projectionFields);
+    String schemaEvolutionColumns = jobConf.get(IOConstants.SCHEMA_EVOLUTION_COLUMNS);
+    String schemaEvolutionColumnsTypes = jobConf.get(IOConstants.SCHEMA_EVOLUTION_COLUMNS_TYPES);
+    readerSchema = HoodieRealtimeRecordReaderUtils.generateProjectionSchema(writerSchema, schemaFieldsMap, projectionFields, schemaEvolutionColumns, schemaEvolutionColumnsTypes);
     LOG.info(String.format("About to read compacted logs %s for base split %s, projecting cols %s",
         split.getDeltaLogPaths(), split.getPath(), projectionFields));
   }

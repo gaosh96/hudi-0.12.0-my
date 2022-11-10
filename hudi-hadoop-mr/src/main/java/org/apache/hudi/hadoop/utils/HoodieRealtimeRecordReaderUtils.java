@@ -54,11 +54,14 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import static org.apache.hudi.avro.AvroSchemaUtils.appendFieldsToSchema;
@@ -66,6 +69,8 @@ import static org.apache.hudi.avro.AvroSchemaUtils.createNullableSchema;
 
 public class HoodieRealtimeRecordReaderUtils {
   private static final Logger LOG = LogManager.getLogger(HoodieRealtimeRecordReaderUtils.class);
+
+  private static final String DECIMAL_PATTERN = "decimal\\((\\d+),(\\d+)";
 
   /**
    * Reads the schema from the base file.
@@ -123,7 +128,7 @@ public class HoodieRealtimeRecordReaderUtils {
    * Generate a reader schema off the provided writeSchema, to just project out the provided columns.
    */
   public static Schema generateProjectionSchema(Schema writeSchema, Map<String, Schema.Field> schemaFieldsMap,
-                                                List<String> fieldNames) {
+                                                List<String> fieldNames, String schemaEvolutionColumns, String schemaEvolutionColumnsTypes) {
     /**
      * Avro & Presto field names seems to be case sensitive (support fields differing only in case) whereas
      * Hive/Impala/SparkSQL(default) are case-insensitive. Spark allows this to be configurable using
@@ -135,11 +140,14 @@ public class HoodieRealtimeRecordReaderUtils {
      *
      */
     List<Schema.Field> projectedFields = new ArrayList<>();
+    Map<String, Schema.Field> schemaEvolutionFieldsMap = getSchemaEvolutionFields(schemaEvolutionColumns, schemaEvolutionColumnsTypes);
+
     for (String fn : fieldNames) {
       Schema.Field field = schemaFieldsMap.get(fn.toLowerCase());
       if (field == null) {
-        throw new HoodieException("Field " + fn + " not found in log schema. Query cannot proceed! "
-            + "Derived Schema Fields: " + new ArrayList<>(schemaFieldsMap.keySet()));
+        projectedFields.add(schemaEvolutionFieldsMap.get(fn.toLowerCase()));
+        //throw new HoodieException("Field " + fn + " not found in log schema. Query cannot proceed! "
+        //    + "Derived Schema Fields: " + new ArrayList<>(schemaFieldsMap.keySet()));
       } else {
         projectedFields.add(new Schema.Field(field.name(), field.schema(), field.doc(), field.defaultVal()));
       }
@@ -149,6 +157,46 @@ public class HoodieRealtimeRecordReaderUtils {
         writeSchema.getNamespace(), writeSchema.isError());
     projectedSchema.setFields(projectedFields);
     return projectedSchema;
+  }
+
+  private static Map<String, Schema.Field> getSchemaEvolutionFields(String schemaEvolutionColumns, String schemaEvolutionColumnsTypes) {
+
+    Map<String, Schema.Field> result = new HashMap<>();
+    String[] columns = schemaEvolutionColumns.split(",");
+    String[] columnTypes = schemaEvolutionColumnsTypes.split(",");
+
+    for (int i = 0; i < columns.length; i++) {
+      String columnName = columns[i];
+      result.put(columnName, new Schema.Field(columnName, toAvroSchema(columnTypes[i]), null, null));
+    }
+
+    return result;
+  }
+
+  private static Schema toAvroSchema(String columnType) {
+
+    // type decimal or decimal(p,s)
+    if (columnType.contains("decimal")) {
+      Pair<Integer, Integer> decimalInfo = getDecimalInfo(columnType);
+      return LogicalTypes.decimal(decimalInfo.getKey(), decimalInfo.getValue())
+                .addToSchema(Schema.createFixed(
+                        "decimal_" + decimalInfo.getKey() + "_" + decimalInfo.getValue(),
+                        null, null, computeMinBytesForPrecision(decimalInfo.getKey())));
+    }
+
+    switch (columnType) {
+      case "bigint":
+      case "long":
+        return Schema.create(Schema.Type.LONG);
+      case "short":
+      case "int":
+        return Schema.create(Schema.Type.INT);
+      case "varchar":
+      case "char":
+      case "string":
+      default:
+        return Schema.create(Schema.Type.STRING);
+    }
   }
 
   public static Map<String, Schema.Field> getNameToFieldMap(Schema schema) {
@@ -308,4 +356,28 @@ public class HoodieRealtimeRecordReaderUtils {
     }
     return appendFieldsToSchema(schema, newFields);
   }
+
+
+  private static Pair<Integer, Integer> getDecimalInfo(String decimalType) {
+    Pattern pattern = Pattern.compile(DECIMAL_PATTERN);
+    Matcher matcher = pattern.matcher(decimalType);
+
+    if (matcher.find()) {
+      int precision = Integer.parseInt(matcher.group(1));
+      int scale = Integer.parseInt(matcher.group(2));
+
+      return Pair.of(precision, scale);
+    }
+
+    return Pair.of(38, 10);
+  }
+
+    private static int computeMinBytesForPrecision(int precision) {
+        int numBytes = 1;
+        while (Math.pow(2.0, 8 * numBytes - 1) < Math.pow(10.0, precision)) {
+            numBytes += 1;
+        }
+        return numBytes;
+    }
+
 }

@@ -1,6 +1,7 @@
 package org.apache.hudi.util;
 
 import com.alibaba.fastjson.JSON;
+import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.parser.Feature;
 import org.apache.flink.api.java.tuple.Tuple2;
@@ -12,6 +13,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAccessor;
 import java.time.temporal.TemporalQueries;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -39,6 +44,24 @@ public class SchemaUtils {
 
         // set nullable to false
         return RowType.of(false, logicalTypes, fieldNames);
+    }
+
+    /**
+     * multi table
+     * @param fields
+     * @return
+     */
+    public static RowType parseTableRowType(JSONArray fields) {
+        List<RowType.RowField> rowFields = new ArrayList<>();
+
+        for (Object field : fields) {
+            JSONObject obj = (JSONObject) field;
+            RowType.RowField rowField = new RowType.RowField(obj.getString("name"), getFieldLogicalType(obj.getString("type").toLowerCase()), obj.getString("desc"));
+            rowFields.add(rowField);
+        }
+
+        // set nullable to false
+        return new RowType(false, rowFields);
     }
 
     private static LogicalType getFieldLogicalType(String type) {
