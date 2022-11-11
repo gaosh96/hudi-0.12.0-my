@@ -37,7 +37,9 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
 
     private List<String> fieldTypes;
 
-    private String partitionFieldName;
+    private String hudiPartitionFieldName;
+
+    private String hiveSyncPartitionFieldName;
 
     public MultiTableStringToRowDataMapFunction(String schemaApolloConfigKey) {
         this.schemaApolloConfigKey = schemaApolloConfigKey;
@@ -46,6 +48,9 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
     @Override
     public void open(Configuration parameters) throws Exception {
         Config appConfig = ConfigService.getAppConfig();
+
+        LOG.info("apollo key: {}", schemaApolloConfigKey);
+
         String tableConfig = appConfig.getProperty(schemaApolloConfigKey, "");
         handleFieldInfo(tableConfig);
 
@@ -70,16 +75,16 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
         GenericRowData rowData = new GenericRowData(fieldNames.size());
         JSONObject record = JSON.parseObject(value, Feature.OrderedField);
 
+        // set hive partition field value
+        record.put(hiveSyncPartitionFieldName, record.getString(hudiPartitionFieldName));
+
         // op
         String op = record.getString("op");
         setRecordRowKind(rowData, op);
 
-        for (int i = 0; i < fieldNames.size() - 1; i++) {
+        for (int i = 0; i < fieldNames.size(); i++) {
             setFieldValue(rowData, record, i, fieldNames.get(i), fieldTypes.get(i));
         }
-
-        // set partition field value
-        rowData.setField(fieldNames.size() - 1, StringData.fromString(record.getString(partitionFieldName)));
 
         LOG.info("rowData: {}", rowData);
 
@@ -127,6 +132,9 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
     }
 
     private void handleFieldInfo(String tableConfig) {
+
+        LOG.info("Table config: {}", tableConfig);
+
         JSONObject config = JSON.parseObject(tableConfig, Feature.OrderedField);
         JSONArray fields = config.getJSONArray("fields");
 
@@ -135,11 +143,12 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
 
         for(int i = 0; i < fields.size(); i ++) {
             JSONObject obj = (JSONObject) fields.get(i);
-            fieldNames.set(i, obj.getString("name"));
-            fieldTypes.set(i, obj.getString("type"));
+            fieldNames.add(i, obj.getString("name"));
+            fieldTypes.add(i, obj.getString("type"));
         }
 
-        partitionFieldName = config.getJSONObject("hudi_config").getString("hudi_partition_field");
+        hudiPartitionFieldName = config.getJSONObject("hudi_config").getString("hudi_partition_field");
+        hiveSyncPartitionFieldName = config.getJSONObject("hive_sync_config").getString("hive_partition_field");
     }
 
 }

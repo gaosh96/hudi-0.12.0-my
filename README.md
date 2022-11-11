@@ -65,10 +65,11 @@ flink run -d -t yarn-per-job -ys 2 -ynm hudi-test -c org.apache.hudi.streamer.Ho
 
 
 ### Apollo Config JSON
+#### COW
 ```
 {
     "db": "mscrpt",
-    "table": "invest_info5",
+    "table": "invest_info_cow",
     "fields": [
         {
             "name": "id_key",
@@ -106,32 +107,112 @@ flink run -d -t yarn-per-job -ys 2 -ynm hudi-test -c org.apache.hudi.streamer.Ho
             "desc": "用户等级"
         },
         {
+            "name": "user_sex",
+            "type": "int",
+            "desc": "用户性别，0 男 1 女"
+        },
+        {
             "name": "ts",
-            "type": "string",
+            "type": "timestamp",
             "desc": "分区字段"
         }
     ],
     "kafka_config": {
         "topic": "invest_info",
-        "group_id": "test05",
+        "group_id": "t04",
         "bootstrap_server": "hadoop001:9092"
     },
     "hive_sync_config": {
         "metastore_uris": "thrift://hadoop001:9083",
         "sync_db": "mscrpt",
-        "sync_table": "invest_info5",
-        "partition_field": "ts"
+        "sync_table": "invest_info_cow",
+        "hive_partition_field": "ts"
     },
     "hudi_config": {
-        "table_type": "MERGE_ON_READ",
-        "base_path": "hdfs:///hudi/mscrpt/invest_info5",
-        "hudi_table": "invest_info5",
-        "key_field": "id_key",
-        "ordering_field": "updated_at",
-        "partition_field": "created_at"
+        "table_type": "COPY_ON_WRITE",
+        "base_path": "hdfs:///hudi/mscrpt/invest_info_cow",
+        "hudi_table_name": "invest_info_cow",
+        "record_key_field": "id_key",
+        "precombine_field": "updated_at",
+        "hudi_partition_field": "created_at"
     }
 }
 ```
+
+#### MOR
+```
+{
+    "db": "mscrpt",
+    "table": "invest_info_mor",
+    "fields": [
+        {
+            "name": "id_key",
+            "type": "string",
+            "desc": "主键"
+        },
+        {
+            "name": "created_at",
+            "type": "timestamp",
+            "desc": "创建时间"
+        },
+        {
+            "name": "enc_user_name",
+            "type": "string",
+            "desc": "加密用户名"
+        },
+        {
+            "name": "enc_user_pwd",
+            "type": "string",
+            "desc": "加密用户密码"
+        },
+        {
+            "name": "invest_amount",
+            "type": "decimal(10,2)",
+            "desc": "投资金额"
+        },
+        {
+            "name": "updated_at",
+            "type": "timestamp",
+            "desc": "更新时间"
+        },
+        {
+            "name": "user_level",
+            "type": "int",
+            "desc": "用户等级"
+        },
+        {
+            "name": "user_sex",
+            "type": "int",
+            "desc": "用户性别，0 男 1 女"
+        },
+        {
+            "name": "ts",
+            "type": "timestamp",
+            "desc": "分区字段"
+        }
+    ],
+    "kafka_config": {
+        "topic": "invest_info",
+        "group_id": "t01",
+        "bootstrap_server": "hadoop001:9092"
+    },
+    "hive_sync_config": {
+        "metastore_uris": "thrift://hadoop001:9083",
+        "sync_db": "mscrpt",
+        "sync_table": "invest_info_mor",
+        "hive_partition_field": "ts"
+    },
+    "hudi_config": {
+        "table_type": "MERGE_ON_READ",
+        "base_path": "hdfs:///hudi/mscrpt/invest_info_mor",
+        "hudi_table_name": "invest_info_mor",
+        "record_key_field": "id_key",
+        "precombine_field": "updated_at",
+        "hudi_partition_field": "created_at"
+    }
+}
+```
+
 
 ### HoodieMuiltiTableFlinkStreamerWithApollo
 ```
@@ -140,6 +221,5 @@ flink run -d -t yarn-per-job \
 -c org.apache.hudi.streamer.HoodieMuiltiTableFlinkStreamerWithApollo \
 ./hudi-flink1.13-bundle-0.12.0.jar \
 --checkpoint-interval 10000 \
---flink-state-backend-type rocksdb \
---apollo-config-key mscrpt.invest_info5.config
+--apollo-config-key mscrpt.invest_info.config
 ```

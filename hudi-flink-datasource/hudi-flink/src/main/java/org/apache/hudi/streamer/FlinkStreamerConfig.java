@@ -47,13 +47,13 @@ import static org.apache.hudi.configuration.FlinkOptions.PARTITION_FORMAT_DAY;
  * Configurations for Hoodie Flink streamer.
  */
 public class FlinkStreamerConfig extends Configuration {
-  @Parameter(names = {"--kafka-topic"}, description = "Kafka topic name.", required = true)
+  @Parameter(names = {"--kafka-topic"}, description = "Kafka topic name.")
   public String kafkaTopic;
 
-  @Parameter(names = {"--kafka-group-id"}, description = "Kafka consumer group id.", required = true)
+  @Parameter(names = {"--kafka-group-id"}, description = "Kafka consumer group id.")
   public String kafkaGroupId;
 
-  @Parameter(names = {"--kafka-bootstrap-servers"}, description = "Kafka bootstrap.servers.", required = true)
+  @Parameter(names = {"--kafka-bootstrap-servers"}, description = "Kafka bootstrap.servers.")
   public String kafkaBootstrapServers;
 
   @Parameter(names = {"--flink-checkpoint-path"}, description = "Flink checkpoint path.")
@@ -71,14 +71,13 @@ public class FlinkStreamerConfig extends Configuration {
 
   @Parameter(names = {"--target-base-path"},
       description = "Base path for the target hoodie table. "
-          + "(Will be created if did not exist first time around. If exists, expected to be a hoodie table).",
-      required = true)
+          + "(Will be created if did not exist first time around. If exists, expected to be a hoodie table).")
   public String targetBasePath;
 
-  @Parameter(names = {"--target-table"}, description = "Name of the target table in Hive.", required = true)
+  @Parameter(names = {"--target-table"}, description = "Name of the target table in Hive.")
   public String targetTableName;
 
-  @Parameter(names = {"--table-type"}, description = "Type of table. COPY_ON_WRITE (or) MERGE_ON_READ.", required = true)
+  @Parameter(names = {"--table-type"}, description = "Type of table. COPY_ON_WRITE (or) MERGE_ON_READ.")
   public String tableType;
 
   @Parameter(names = {"--insert-cluster"}, description = "Whether to merge small files for insert mode, "
@@ -356,32 +355,32 @@ public class FlinkStreamerConfig extends Configuration {
     Map<String, String> propsMap = new HashMap<String, String>((Map) StreamerUtil.getProps(config));
     org.apache.flink.configuration.Configuration conf = fromMap(propsMap);
 
-    conf.setString(FlinkOptions.PATH, config.targetBasePath);
-    conf.setString(FlinkOptions.TABLE_NAME, config.targetTableName);
+    //conf.setString(FlinkOptions.PATH, config.targetBasePath);
+    //conf.setString(FlinkOptions.TABLE_NAME, config.targetTableName);
     // copy_on_write works same as COPY_ON_WRITE
-    conf.setString(FlinkOptions.TABLE_TYPE, config.tableType.toUpperCase());
+    //conf.setString(FlinkOptions.TABLE_TYPE, config.tableType.toUpperCase());
     conf.setBoolean(FlinkOptions.INSERT_CLUSTER, config.insertCluster);
     conf.setString(FlinkOptions.OPERATION, config.operation.value());
-    conf.setString(FlinkOptions.PRECOMBINE_FIELD, config.sourceOrderingField);
+    //conf.setString(FlinkOptions.PRECOMBINE_FIELD, config.sourceOrderingField);
     conf.setString(FlinkOptions.PAYLOAD_CLASS_NAME, config.payloadClassName);
     conf.setBoolean(FlinkOptions.PRE_COMBINE, config.preCombine);
     conf.setInteger(FlinkOptions.RETRY_TIMES, Integer.parseInt(config.instantRetryTimes));
     conf.setLong(FlinkOptions.RETRY_INTERVAL_MS, Long.parseLong(config.instantRetryInterval));
     conf.setBoolean(FlinkOptions.IGNORE_FAILED, config.commitOnErrors);
-    conf.setString(FlinkOptions.RECORD_KEY_FIELD, config.recordKeyField);
-    conf.setString(FlinkOptions.PARTITION_PATH_FIELD, config.partitionPathField);
+    //conf.setString(FlinkOptions.RECORD_KEY_FIELD, config.recordKeyField);
+    //conf.setString(FlinkOptions.PARTITION_PATH_FIELD, config.partitionPathField);
     conf.setBoolean(FlinkOptions.METADATA_ENABLED, config.metadataEnabled);
     conf.setInteger(FlinkOptions.METADATA_COMPACTION_DELTA_COMMITS, config.metadataCompactionDeltaCommits);
-    conf.setString(FlinkOptions.PARTITION_FORMAT, config.writePartitionFormat);
+    //conf.setString(FlinkOptions.PARTITION_FORMAT, config.writePartitionFormat);
     conf.setLong(FlinkOptions.WRITE_RATE_LIMIT, config.writeRateLimit);
     conf.setInteger(FlinkOptions.WRITE_PARQUET_BLOCK_SIZE, config.writeParquetBlockSize);
     conf.setInteger(FlinkOptions.WRITE_PARQUET_MAX_FILE_SIZE, config.writeParquetMaxFileSize);
     conf.setInteger(FlinkOptions.WRITE_PARQUET_PAGE_SIZE, config.parquetPageSize);
-    if (!StringUtils.isNullOrEmpty(config.keygenClass)) {
-      conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, config.keygenClass);
-    } else {
-      conf.setString(FlinkOptions.KEYGEN_TYPE, config.keygenType);
-    }
+    //if (!StringUtils.isNullOrEmpty(config.keygenClass)) {
+    //  conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, config.keygenClass);
+    //} else {
+    //  conf.setString(FlinkOptions.KEYGEN_TYPE, config.keygenType);
+    //}
     // defualt: bucket index
     conf.setString(FlinkOptions.INDEX_TYPE, config.indexType);
     conf.setInteger(FlinkOptions.INDEX_BOOTSTRAP_TASKS, config.indexBootstrapNum);
@@ -392,13 +391,13 @@ public class FlinkStreamerConfig extends Configuration {
     conf.setDouble(FlinkOptions.INDEX_STATE_TTL, config.indexStateTtl);
     conf.setBoolean(FlinkOptions.INDEX_GLOBAL_ENABLED, config.indexGlobalEnabled);
     conf.setString(FlinkOptions.INDEX_PARTITION_REGEX, config.indexPartitionRegex);
-    if (!StringUtils.isNullOrEmpty(config.sourceAvroSchemaPath)) {
-      conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA_PATH, config.sourceAvroSchemaPath);
-    }
-    conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, config.sourceAvroSchema);
+    //if (!StringUtils.isNullOrEmpty(config.sourceAvroSchemaPath)) {
+    //  conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA_PATH, config.sourceAvroSchemaPath);
+    //}
+    //conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, config.sourceAvroSchema);
     conf.setBoolean(FlinkOptions.UTC_TIMEZONE, config.utcTimezone);
     conf.setBoolean(FlinkOptions.URL_ENCODE_PARTITIONING, config.writePartitionUrlEncode);
-    conf.setBoolean(FlinkOptions.HIVE_STYLE_PARTITIONING, config.hiveStylePartitioning);
+    //conf.setBoolean(FlinkOptions.HIVE_STYLE_PARTITIONING, config.hiveStylePartitioning);
     conf.setDouble(FlinkOptions.WRITE_TASK_MAX_SIZE, config.writeTaskMaxSize);
     conf.setDouble(FlinkOptions.WRITE_BATCH_SIZE, config.writeBatchSize);
     conf.setInteger(FlinkOptions.WRITE_LOG_BLOCK_SIZE, config.writeLogBlockSize);
@@ -417,17 +416,17 @@ public class FlinkStreamerConfig extends Configuration {
     conf.setInteger(FlinkOptions.CLEAN_RETAIN_FILE_VERSIONS, config.cleanRetainFileVersions);
     conf.setInteger(FlinkOptions.ARCHIVE_MAX_COMMITS, config.archiveMaxCommits);
     conf.setInteger(FlinkOptions.ARCHIVE_MIN_COMMITS, config.archiveMinCommits);
-    conf.setBoolean(FlinkOptions.HIVE_SYNC_ENABLED, config.hiveSyncEnabled);
-    conf.setString(FlinkOptions.HIVE_SYNC_DB, config.hiveSyncDb);
-    conf.setString(FlinkOptions.HIVE_SYNC_TABLE, config.hiveSyncTable);
+    //conf.setBoolean(FlinkOptions.HIVE_SYNC_ENABLED, config.hiveSyncEnabled);
+    //conf.setString(FlinkOptions.HIVE_SYNC_DB, config.hiveSyncDb);
+    //conf.setString(FlinkOptions.HIVE_SYNC_TABLE, config.hiveSyncTable);
     conf.setString(FlinkOptions.HIVE_SYNC_FILE_FORMAT, config.hiveSyncFileFormat);
-    conf.setString(FlinkOptions.HIVE_SYNC_MODE, config.hiveSyncMode);
+    //conf.setString(FlinkOptions.HIVE_SYNC_MODE, config.hiveSyncMode);
     conf.setString(FlinkOptions.HIVE_SYNC_USERNAME, config.hiveSyncUsername);
     conf.setString(FlinkOptions.HIVE_SYNC_PASSWORD, config.hiveSyncPassword);
     conf.setString(FlinkOptions.HIVE_SYNC_JDBC_URL, config.hiveSyncJdbcUrl);
-    conf.setString(FlinkOptions.HIVE_SYNC_METASTORE_URIS, config.hiveSyncMetastoreUri);
-    conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_FIELDS, config.hiveSyncPartitionFields);
-    conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, config.hiveSyncPartitionExtractorClass);
+    //conf.setString(FlinkOptions.HIVE_SYNC_METASTORE_URIS, config.hiveSyncMetastoreUri);
+    //conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_FIELDS, config.hiveSyncPartitionFields);
+    //conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, config.hiveSyncPartitionExtractorClass);
     conf.setBoolean(FlinkOptions.HIVE_SYNC_ASSUME_DATE_PARTITION, config.hiveSyncAssumeDatePartition);
     conf.setBoolean(FlinkOptions.HIVE_SYNC_USE_JDBC, config.hiveSyncUseJdbc);
     conf.setBoolean(FlinkOptions.HIVE_SYNC_AUTO_CREATE_DB, config.hiveSyncAutoCreateDb);

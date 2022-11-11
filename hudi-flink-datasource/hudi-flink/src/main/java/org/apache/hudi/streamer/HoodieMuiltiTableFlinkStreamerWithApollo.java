@@ -23,6 +23,7 @@ import com.alibaba.fastjson.parser.Feature;
 import com.beust.jcommander.JCommander;
 import com.ctrip.framework.apollo.Config;
 import com.ctrip.framework.apollo.ConfigService;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.DataStream;
@@ -36,7 +37,6 @@ import org.apache.hudi.configuration.OptionsResolver;
 import org.apache.hudi.hive.HiveStylePartitionValueExtractor;
 import org.apache.hudi.keygen.TimestampBasedAvroKeyGenerator;
 import org.apache.hudi.keygen.constant.KeyGeneratorOptions;
-import org.apache.hudi.sink.transform.MyRowDataToHoodieFunction;
 import org.apache.hudi.sink.utils.Pipelines;
 import org.apache.hudi.util.AvroSchemaConverter;
 import org.apache.hudi.util.MultiTableStringToRowDataMapFunction;
@@ -54,7 +54,7 @@ import java.util.Properties;
  */
 public class HoodieMuiltiTableFlinkStreamerWithApollo {
 
-    private static final Logger LOG = LoggerFactory.getLogger(MyRowDataToHoodieFunction.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HoodieMuiltiTableFlinkStreamerWithApollo.class);
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -88,19 +88,21 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         for (String apolloConfigKey : apolloConfigKeys) {
             String config = appConfig.getProperty(apolloConfigKey, "");
             JSONObject obj = JSONObject.parseObject(config, Feature.OrderedField);
+            LOG.info("apollo config: {}", obj);
+
             RowType rowType = SchemaUtils.parseTableRowType(obj.getJSONArray("fields"));
             LOG.info("rowType: {}", rowType);
 
-            // set apollo key to this table config
+            // set apollo key to this table config key
             conf.setString(FlinkOptions.APOLLO_CONFIG_KEY, apolloConfigKey);
 
             // init kafka config
             DataStream<String> kafkaStringDataStream = initKafkaConfig(env, obj.getJSONObject("kafka_config"));
-            DataStream<RowData> dataStream = kafkaStringDataStream.map(new MultiTableStringToRowDataMapFunction(cfg.apolloConfigKey));
+            DataStream<RowData> dataStream = kafkaStringDataStream.map(new MultiTableStringToRowDataMapFunction(apolloConfigKey));
 
             // init hudi config and hive sync config
             initHudiConfig(conf, rowType, obj.getJSONObject("hudi_config"), obj.getJSONObject("hive_sync_config"));
-            LOG.info("total config: {}", config);
+            LOG.info("config: {}", config);
 
             writeHudi(conf, rowType, parallelism, dataStream);
         }
@@ -122,9 +124,8 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
                         topic,
                         new SimpleStringSchema(),
                         kafkaProps
-                )).name(topic + "_source")
-                .uid(topic + "_source_uid");
-
+                )).name(StringUtils.join(topic, "_", groupId, "_", " kafka source"))
+                .uid(StringUtils.join(topic, "_", groupId, "_", " kafka source"));
     }
 
     private static Configuration initHudiConfig(Configuration conf, RowType rowType, JSONObject hudiConfig, JSONObject hiveSyncConfig) {
@@ -132,10 +133,15 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         // hudi config
         conf.setString(FlinkOptions.TABLE_TYPE, hudiConfig.getString("table_type"));
         conf.setString(FlinkOptions.PATH, hudiConfig.getString("base_path"));
-        conf.setString(FlinkOptions.TABLE_NAME, hudiConfig.getString("hudi_table"));
+        conf.setString(FlinkOptions.TABLE_NAME, hudiConfig.getString("hudi_table_name"));
         conf.setString(FlinkOptions.RECORD_KEY_FIELD, hudiConfig.getString("record_key_field"));
         conf.setString(FlinkOptions.PRECOMBINE_FIELD, hudiConfig.getString("precombine_field"));
-        conf.setString(FlinkOptions.PARTITION_PATH_FIELD, hudiConfig.getString("hudi_partition_field"));
+        conf.setString(FlinkOptions.PARTITION_PATH_FIELD, hiveSyncConfig.getString("hive_partition_field"));
+
+        // compaction config
+        conf.setString(FlinkOptions.COMPACTION_TRIGGER_STRATEGY, FlinkOptions.NUM_OR_TIME);
+        conf.setInteger(FlinkOptions.COMPACTION_DELTA_COMMITS, 3);
+        conf.setInteger(FlinkOptions.COMPACTION_DELTA_SECONDS, 60);
 
         // hive sync config
         conf.setBoolean(FlinkOptions.HIVE_SYNC_ENABLED, true);

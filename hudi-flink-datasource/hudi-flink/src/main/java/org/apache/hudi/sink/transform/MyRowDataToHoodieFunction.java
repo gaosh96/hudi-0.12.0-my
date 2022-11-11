@@ -115,14 +115,14 @@ public class MyRowDataToHoodieFunction<I extends RowData, O extends HoodieRecord
         // for multiple table
         JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
         JSONArray fields = obj.getJSONArray("fields");
-        rowType = SchemaUtils.parseTableRowType(fields);
+        this.rowType = SchemaUtils.parseTableRowType(fields);
 
         // for simple table
         //rowType = SchemaUtils.parseTableRowType(schema);
 
-        avroSchema = AvroSchemaConverter.convertToSchema(rowType);
-        config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
-        converter = RowDataToAvroConverters.createConverter(rowType);
+        this.avroSchema = AvroSchemaConverter.convertToSchema(rowType);
+        this.config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
+        this.converter = RowDataToAvroConverters.createConverter(rowType);
       }
     });
 

@@ -217,10 +217,11 @@ public class StreamWriteOperatorCoordinator
         // for simple table
         //RowType rowType = SchemaUtils.parseTableRowType(schema);
         Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
-        conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
+        this.conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
 
         try {
-          writeClient = StreamerUtil.createWriteClient(conf);
+          this.writeClient = StreamerUtil.createWriteClient(conf);
+          initMetadataTable(this.writeClient);
         } catch (IOException e) {
           e.printStackTrace();
         }

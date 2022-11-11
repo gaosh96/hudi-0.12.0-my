@@ -18,15 +18,25 @@
 
 package org.apache.hudi.sink.compact;
 
+import com.alibaba.fastjson.JSONArray;
+import com.alibaba.fastjson.JSONObject;
+import com.alibaba.fastjson.parser.Feature;
+import com.ctrip.framework.apollo.Config;
+import com.ctrip.framework.apollo.ConfigService;
+import org.apache.avro.Schema;
+import org.apache.flink.table.types.logical.RowType;
 import org.apache.hudi.client.HoodieFlinkWriteClient;
 import org.apache.hudi.client.WriteStatus;
 import org.apache.hudi.common.model.CompactionOperation;
 import org.apache.hudi.config.HoodieWriteConfig;
+import org.apache.hudi.configuration.FlinkOptions;
 import org.apache.hudi.configuration.OptionsResolver;
 import org.apache.hudi.sink.utils.NonThrownExecutor;
 import org.apache.hudi.table.HoodieFlinkCopyOnWriteTable;
 import org.apache.hudi.table.action.compact.HoodieFlinkMergeOnReadTableCompactor;
+import org.apache.hudi.util.AvroSchemaConverter;
 import org.apache.hudi.util.CompactionUtil;
+import org.apache.hudi.util.SchemaUtils;
 import org.apache.hudi.util.StreamerUtil;
 
 import org.apache.flink.annotation.VisibleForTesting;
@@ -83,6 +93,32 @@ public class CompactFunction extends ProcessFunction<CompactionPlanEvent, Compac
     if (this.asyncCompaction) {
       this.executor = NonThrownExecutor.builder(LOG).build();
     }
+
+    Config appConfig = ConfigService.getAppConfig();
+    String apolloConfigKey = this.conf.getString(FlinkOptions.APOLLO_CONFIG_KEY);
+
+    appConfig.addChangeListener(event -> {
+      if (event.isChanged(apolloConfigKey)) {
+        String schema = appConfig.getProperty(apolloConfigKey, "");
+
+        // for multiple table
+        JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
+        JSONArray fields = obj.getJSONArray("fields");
+        RowType rowType = SchemaUtils.parseTableRowType(fields);
+
+        // for simple table
+        //RowType rowType = SchemaUtils.parseTableRowType(schema);
+        Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
+        this.conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
+
+        try {
+          this.writeClient = StreamerUtil.createWriteClient(conf);
+        } catch (IOException e) {
+          e.printStackTrace();
+        }
+      }
+    });
+
   }
 
   @Override

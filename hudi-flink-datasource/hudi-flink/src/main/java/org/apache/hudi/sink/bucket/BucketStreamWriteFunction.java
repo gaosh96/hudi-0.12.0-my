@@ -120,7 +120,7 @@ public class BucketStreamWriteFunction<I> extends StreamWriteFunction<I> {
         Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
         config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
         // writeClient
-        writeClient = StreamerUtil.createWriteClient(config, getRuntimeContext());
+        this.writeClient = StreamerUtil.createWriteClient(config, getRuntimeContext());
       }
     });
 
