@@ -380,6 +380,9 @@ public class FlinkOptions extends HoodieConfig {
       .defaultValue(KeyGeneratorType.SIMPLE.name())
       .withDescription("Key generator type, that implements will extract the key out of incoming record");
 
+  // for input date format
+  public static final String PARTITION_FORMAT_NORMAL = "yyyy-MM-dd HH:mm:ss";
+
   public static final String PARTITION_FORMAT_HOUR = "yyyyMMddHH";
   public static final String PARTITION_FORMAT_DAY = "yyyyMMdd";
   public static final String PARTITION_FORMAT_DASHED_DAY = "yyyy-MM-dd";
@@ -810,7 +813,7 @@ public class FlinkOptions extends HoodieConfig {
           .key("apollo.config.key")
           .stringType()
           .noDefaultValue()
-          .withDescription("Apollo config key.");
+          .withDescription("Apollo config key");
 
 
   // -------------------------------------------------------------------------

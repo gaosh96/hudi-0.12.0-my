@@ -86,25 +86,25 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         String[] apolloConfigKeys = cfg.apolloConfigKey.split(",");
 
         for (String apolloConfigKey : apolloConfigKeys) {
+            // important: each hudi table must use different config object
+            Configuration tableConf = conf.clone();
+
             String config = appConfig.getProperty(apolloConfigKey, "");
             JSONObject obj = JSONObject.parseObject(config, Feature.OrderedField);
-            LOG.info("apollo config: {}", obj);
 
             RowType rowType = SchemaUtils.parseTableRowType(obj.getJSONArray("fields"));
-            LOG.info("rowType: {}", rowType);
 
             // set apollo key to this table config key
-            conf.setString(FlinkOptions.APOLLO_CONFIG_KEY, apolloConfigKey);
+            tableConf.setString(FlinkOptions.APOLLO_CONFIG_KEY, apolloConfigKey);
 
             // init kafka config
             DataStream<String> kafkaStringDataStream = initKafkaConfig(env, obj.getJSONObject("kafka_config"));
             DataStream<RowData> dataStream = kafkaStringDataStream.map(new MultiTableStringToRowDataMapFunction(apolloConfigKey));
 
             // init hudi config and hive sync config
-            initHudiConfig(conf, rowType, obj.getJSONObject("hudi_config"), obj.getJSONObject("hive_sync_config"));
-            LOG.info("config: {}", config);
+            initHudiConfig(tableConf, rowType, obj.getJSONObject("hudi_config"), obj.getJSONObject("hive_sync_config"));
 
-            writeHudi(conf, rowType, parallelism, dataStream);
+            writeHudi(tableConf, rowType, parallelism, dataStream);
         }
 
         env.execute("multiple table write to hudi");
@@ -124,11 +124,11 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
                         topic,
                         new SimpleStringSchema(),
                         kafkaProps
-                )).name(StringUtils.join(topic, "_", groupId, "_", " kafka source"))
-                .uid(StringUtils.join(topic, "_", groupId, "_", " kafka source"));
+                )).name(StringUtils.join(topic, "_", groupId, "_", "kafka_source"))
+                .uid(StringUtils.join(topic, "_", groupId, "_", "kafka_source_uid"));
     }
 
-    private static Configuration initHudiConfig(Configuration conf, RowType rowType, JSONObject hudiConfig, JSONObject hiveSyncConfig) {
+    private static void initHudiConfig(Configuration conf, RowType rowType, JSONObject hudiConfig, JSONObject hiveSyncConfig) {
 
         // hudi config
         conf.setString(FlinkOptions.TABLE_TYPE, hudiConfig.getString("table_type"));
@@ -156,21 +156,17 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         // set avro schema
         conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, AvroSchemaConverter.convertToSchema(rowType).toString());
 
-        // set keygen to TimestampBasedAvroKeyGenerator
-        conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
-
         conf.setString(KeyGeneratorOptions.RECORDKEY_FIELD_NAME.key(), conf.getString(FlinkOptions.RECORD_KEY_FIELD));
-        conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
-
         conf.setString(FlinkOptions.INDEX_KEY_FIELD, conf.getString(FlinkOptions.RECORD_KEY_FIELD));
 
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, TimestampBasedAvroKeyGenerator.TimestampType.EPOCHMILLISECONDS.name());
+        // partition config
+        conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
+        conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.DATE_STRING.name());
+        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_NORMAL);
         conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
-        // java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
+        // fix java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
         conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, HiveStylePartitionValueExtractor.class.getCanonicalName());
-
-        return conf;
     }
 
     private static void writeHudi(Configuration conf, RowType rowType, int parallelism, DataStream<RowData> dataStream) {

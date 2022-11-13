@@ -113,7 +113,7 @@ flink run -d -t yarn-per-job -ys 2 -ynm hudi-test -c org.apache.hudi.streamer.Ho
         },
         {
             "name": "ts",
-            "type": "timestamp",
+            "type": "string",
             "desc": "分区字段"
         }
     ],
@@ -187,7 +187,7 @@ flink run -d -t yarn-per-job -ys 2 -ynm hudi-test -c org.apache.hudi.streamer.Ho
         },
         {
             "name": "ts",
-            "type": "timestamp",
+            "type": "string",
             "desc": "分区字段"
         }
     ],

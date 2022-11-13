@@ -48,9 +48,6 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
     @Override
     public void open(Configuration parameters) throws Exception {
         Config appConfig = ConfigService.getAppConfig();
-
-        LOG.info("apollo key: {}", schemaApolloConfigKey);
-
         String tableConfig = appConfig.getProperty(schemaApolloConfigKey, "");
         handleFieldInfo(tableConfig);
 
@@ -85,8 +82,6 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
         for (int i = 0; i < fieldNames.size(); i++) {
             setFieldValue(rowData, record, i, fieldNames.get(i), fieldTypes.get(i));
         }
-
-        LOG.info("rowData: {}", rowData);
 
         return rowData;
     }
