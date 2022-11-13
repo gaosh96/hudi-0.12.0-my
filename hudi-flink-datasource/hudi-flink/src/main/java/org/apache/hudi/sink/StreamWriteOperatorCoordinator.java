@@ -407,10 +407,6 @@ public class StreamWriteOperatorCoordinator
   }
 
   private void startInstant() {
-
-    LOG.info("conf: " + this.conf);
-    LOG.info("writeClient: " + this.writeClient);
-
     // put the assignment in front of metadata generation,
     // because the instant request from write task is asynchronous.
     this.instant = this.writeClient.startCommit(tableState.commitAction, this.metaClient);
