@@ -301,6 +301,10 @@ public class HiveSyncTool extends HoodieSyncTool implements AutoCloseable {
     if (config.getBoolean(HIVE_SYNC_COMMENT)) {
       List<FieldSchema> fromMetastore = syncClient.getMetastoreFieldSchemas(tableName);
       List<FieldSchema> fromStorage = syncClient.getStorageFieldSchemas();
+
+      LOG.info("comment fromMetastore: " + fromMetastore);
+      LOG.info("comment fromStorage: " + fromStorage);
+
       syncClient.updateTableComments(tableName, fromMetastore, fromStorage);
     }
     return schemaChanged;

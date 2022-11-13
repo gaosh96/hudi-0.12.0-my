@@ -177,6 +177,7 @@ public class HiveSchemaUtil {
   public static LinkedHashMap<String, String> parquetSchemaToMapSchema(MessageType messageType, boolean supportTimestamp, boolean doFormat) throws IOException {
     LinkedHashMap<String, String> schema = new LinkedHashMap<>();
     List<Type> parquetFields = messageType.getFields();
+
     for (Type parquetType : parquetFields) {
       StringBuilder result = new StringBuilder();
       String key = parquetType.getName();
