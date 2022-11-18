@@ -35,11 +35,12 @@ import org.apache.hudi.common.model.HoodieRecord;
 import org.apache.hudi.configuration.FlinkOptions;
 import org.apache.hudi.configuration.OptionsResolver;
 import org.apache.hudi.hive.HiveStylePartitionValueExtractor;
-import org.apache.hudi.hive.HiveSyncConfig;
-import org.apache.hudi.hive.HiveSyncConfigHolder;
+import org.apache.hudi.hive.NonPartitionedExtractor;
+import org.apache.hudi.keygen.NonpartitionedAvroKeyGenerator;
 import org.apache.hudi.keygen.TimestampBasedAvroKeyGenerator;
 import org.apache.hudi.keygen.constant.KeyGeneratorOptions;
 import org.apache.hudi.sink.utils.Pipelines;
+import org.apache.hudi.sync.common.HoodieSyncConfig;
 import org.apache.hudi.util.AvroSchemaConverter;
 import org.apache.hudi.util.MultiTableStringToRowDataMapFunction;
 import org.apache.hudi.util.SchemaUtils;
@@ -138,7 +139,6 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         conf.setString(FlinkOptions.TABLE_NAME, hudiConfig.getString("hudi_table_name"));
         conf.setString(FlinkOptions.RECORD_KEY_FIELD, hudiConfig.getString("record_key_field"));
         conf.setString(FlinkOptions.PRECOMBINE_FIELD, hudiConfig.getString("precombine_field"));
-        conf.setString(FlinkOptions.PARTITION_PATH_FIELD, hiveSyncConfig.getString("hive_partition_field"));
 
         // compaction config
         conf.setString(FlinkOptions.COMPACTION_TRIGGER_STRATEGY, FlinkOptions.NUM_OR_TIME);
@@ -151,24 +151,35 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         conf.setString(FlinkOptions.HIVE_SYNC_TABLE, hiveSyncConfig.getString("sync_table"));
         conf.setString(FlinkOptions.HIVE_SYNC_MODE, "hms");
         conf.setString(FlinkOptions.HIVE_SYNC_METASTORE_URIS, hiveSyncConfig.getString("metastore_uris"));
-        conf.setBoolean(FlinkOptions.HIVE_STYLE_PARTITIONING, true);
-        conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_FIELDS, hiveSyncConfig.getString("hive_partition_field"));
-        conf.setString(FlinkOptions.PARTITION_FORMAT, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
 
         // set avro schema
         conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, AvroSchemaConverter.convertToSchema(rowType).toString());
 
+        // record key
         conf.setString(KeyGeneratorOptions.RECORDKEY_FIELD_NAME.key(), conf.getString(FlinkOptions.RECORD_KEY_FIELD));
         conf.setString(FlinkOptions.INDEX_KEY_FIELD, conf.getString(FlinkOptions.RECORD_KEY_FIELD));
 
+        String hivePartitionField = hiveSyncConfig.getString("hive_partition_field");
+
         // partition config
-        conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, TimestampBasedAvroKeyGenerator.class.getName());
-        conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.DATE_STRING.name());
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_NORMAL);
-        conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
-        // fix java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
-        conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, HiveStylePartitionValueExtractor.class.getCanonicalName());
+        if (StringUtils.isNotBlank(hivePartitionField)) {
+            conf.setString(FlinkOptions.PARTITION_PATH_FIELD, hivePartitionField);
+
+            conf.setBoolean(FlinkOptions.HIVE_STYLE_PARTITIONING, true);
+            conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_FIELDS, hiveSyncConfig.getString("hive_partition_field"));
+            conf.setString(FlinkOptions.PARTITION_FORMAT, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
+
+            conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
+            conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.DATE_STRING.name());
+            conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_NORMAL);
+            conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
+            // fix java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
+            conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, HiveStylePartitionValueExtractor.class.getCanonicalName());
+        } else {
+            // no partition table
+            conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, NonpartitionedAvroKeyGenerator.class.getName());
+            conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, NonPartitionedExtractor.class.getCanonicalName());
+        }
     }
 
     private static void writeHudi(Configuration conf, RowType rowType, int parallelism, DataStream<RowData> dataStream) {
@@ -179,6 +190,5 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         } else {
             Pipelines.clean(conf, pipeline);
         }
-
     }
 }

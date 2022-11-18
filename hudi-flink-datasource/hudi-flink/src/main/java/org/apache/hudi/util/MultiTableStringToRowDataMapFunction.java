@@ -8,6 +8,7 @@ import com.ctrip.framework.apollo.Config;
 import com.ctrip.framework.apollo.ConfigChangeListener;
 import com.ctrip.framework.apollo.ConfigService;
 import com.ctrip.framework.apollo.model.ConfigChangeEvent;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.functions.RichMapFunction;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
@@ -72,8 +73,10 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
         GenericRowData rowData = new GenericRowData(fieldNames.size());
         JSONObject record = JSON.parseObject(value, Feature.OrderedField);
 
-        // set hive partition field value
-        record.put(hiveSyncPartitionFieldName, record.getString(hudiPartitionFieldName));
+        if (StringUtils.isNotBlank(hiveSyncPartitionFieldName)) {
+            // set hive partition field value
+            record.put(hiveSyncPartitionFieldName, record.getString(hudiPartitionFieldName));
+        }
 
         // op
         String op = record.getString("op");
