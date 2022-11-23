@@ -22,9 +22,7 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.parser.Feature;
 import com.ctrip.framework.apollo.Config;
-import com.ctrip.framework.apollo.ConfigChangeListener;
 import com.ctrip.framework.apollo.ConfigService;
-import com.ctrip.framework.apollo.model.ConfigChangeEvent;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -98,9 +96,6 @@ public class MyRowDataToHoodieFunction<I extends RowData, O extends HoodieRecord
   public void open(Configuration parameters) throws Exception {
     super.open(parameters);
 
-    Config appConfig = ConfigService.getAppConfig();
-    String apolloConfigKey = this.config.getString(FlinkOptions.APOLLO_CONFIG_KEY);
-
     this.avroSchema = StreamerUtil.getSourceSchema(this.config);
     this.converter = RowDataToAvroConverters.createConverter(this.rowType);
     this.keyGenerator =
@@ -108,23 +103,25 @@ public class MyRowDataToHoodieFunction<I extends RowData, O extends HoodieRecord
             .createKeyGenerator(flinkConf2TypedProperties(this.config));
     this.payloadCreation = PayloadCreation.instance(config);
 
-    appConfig.addChangeListener(event -> {
-      if (event.isChanged(apolloConfigKey)) {
-        String schema = appConfig.getProperty(apolloConfigKey, "");
+    if (config.getBoolean(FlinkOptions.APOLLO_CONFIG_ENABLED)) {
+      Config appConfig = ConfigService.getConfig(config.getString(FlinkOptions.APOLLO_CONFIG_NAMESPACE));
+      String apolloConfigKey = config.getString(FlinkOptions.APOLLO_CONFIG_KEY);
 
-        // for multiple table
-        JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
-        JSONArray fields = obj.getJSONArray("fields");
-        this.rowType = SchemaUtils.parseTableRowType(fields);
+      appConfig.addChangeListener(event -> {
+        if (event.isChanged(apolloConfigKey)) {
+          String schema = appConfig.getProperty(apolloConfigKey, "");
 
-        // for simple table
-        //rowType = SchemaUtils.parseTableRowType(schema);
+          // for multiple table
+          JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
+          JSONArray fields = obj.getJSONArray("fields");
 
-        this.avroSchema = AvroSchemaConverter.convertToSchema(rowType);
-        this.config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
-        this.converter = RowDataToAvroConverters.createConverter(rowType);
-      }
-    });
+          this.rowType = SchemaUtils.parseTableRowType(fields);
+          this.avroSchema = AvroSchemaConverter.convertToSchema(rowType);
+          this.config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
+          this.converter = RowDataToAvroConverters.createConverter(rowType);
+        }
+      });
+    }
 
   }
 

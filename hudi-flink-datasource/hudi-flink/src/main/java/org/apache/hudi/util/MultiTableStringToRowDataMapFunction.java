@@ -32,7 +32,13 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
 
     private static final Logger LOG = LoggerFactory.getLogger(MultiTableStringToRowDataMapFunction.class);
 
-    private final String schemaApolloConfigKey;
+    private final boolean apolloConfigEnabled;
+
+    private String schemaApolloConfigNamespace;
+
+    private String schemaApolloConfigKey;
+
+    private String tableConfig;
 
     private List<String> fieldNames;
 
@@ -42,29 +48,38 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
 
     private String hiveSyncPartitionFieldName;
 
-    public MultiTableStringToRowDataMapFunction(String schemaApolloConfigKey) {
+    public MultiTableStringToRowDataMapFunction(String tableConfig) {
+        this.apolloConfigEnabled = false;
+        this.tableConfig = tableConfig;
+    }
+
+    public MultiTableStringToRowDataMapFunction(String tableConfig, String schemaApolloConfigNamespace, String schemaApolloConfigKey) {
+        this.apolloConfigEnabled = true;
+        this.tableConfig = tableConfig;
+        this.schemaApolloConfigNamespace = schemaApolloConfigNamespace;
         this.schemaApolloConfigKey = schemaApolloConfigKey;
     }
 
     @Override
     public void open(Configuration parameters) throws Exception {
-        Config appConfig = ConfigService.getAppConfig();
-        String tableConfig = appConfig.getProperty(schemaApolloConfigKey, "");
-        handleFieldInfo(tableConfig);
+        if (apolloConfigEnabled) {
+            Config appConfig = ConfigService.getConfig(schemaApolloConfigNamespace);
+            appConfig.addChangeListener(new ConfigChangeListener() {
+                @Override
+                public void onChange(ConfigChangeEvent event) {
+                    if (event.isChanged(schemaApolloConfigKey)) {
+                        tableConfig = appConfig.getProperty(schemaApolloConfigKey, "");
+                        // update fieldNames and fieldTypes
+                        handleFieldInfo(tableConfig);
 
-        appConfig.addChangeListener(new ConfigChangeListener() {
-            @Override
-            public void onChange(ConfigChangeEvent event) {
-                if (event.isChanged(schemaApolloConfigKey)) {
-                    String schema = appConfig.getProperty(schemaApolloConfigKey, "");
-                    // update fieldNames and fieldTypes
-                    handleFieldInfo(schema);
-
-                    LOG.info("update fieldNames: {}", fieldNames);
-                    LOG.info("update fieldTypes: {}", fieldTypes);
+                        LOG.info("update fieldNames: {}", fieldNames);
+                        LOG.info("update fieldTypes: {}", fieldTypes);
+                    }
                 }
-            }
-        });
+            });
+        }
+
+        handleFieldInfo(tableConfig);
     }
 
     @Override
@@ -139,7 +154,7 @@ public class MultiTableStringToRowDataMapFunction extends RichMapFunction<String
         fieldNames = new ArrayList<>();
         fieldTypes = new ArrayList<>();
 
-        for(int i = 0; i < fields.size(); i ++) {
+        for (int i = 0; i < fields.size(); i++) {
             JSONObject obj = (JSONObject) fields.get(i);
             fieldNames.add(i, obj.getString("name"));
             fieldTypes.add(i, obj.getString("type"));

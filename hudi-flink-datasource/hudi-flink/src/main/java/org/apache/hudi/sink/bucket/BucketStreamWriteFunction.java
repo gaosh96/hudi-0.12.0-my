@@ -22,24 +22,20 @@ import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.alibaba.fastjson.parser.Feature;
 import com.ctrip.framework.apollo.Config;
-import com.ctrip.framework.apollo.ConfigChangeListener;
 import com.ctrip.framework.apollo.ConfigService;
-import com.ctrip.framework.apollo.model.ConfigChangeEvent;
 import org.apache.avro.Schema;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.table.types.logical.RowType;
+import org.apache.flink.util.Collector;
 import org.apache.hudi.common.model.HoodieKey;
 import org.apache.hudi.common.model.HoodieRecord;
 import org.apache.hudi.common.model.HoodieRecordLocation;
 import org.apache.hudi.configuration.FlinkOptions;
 import org.apache.hudi.index.bucket.BucketIdentifier;
 import org.apache.hudi.sink.StreamWriteFunction;
-
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.streaming.api.functions.ProcessFunction;
-import org.apache.flink.util.Collector;
 import org.apache.hudi.util.AvroSchemaConverter;
-import org.apache.hudi.util.RowDataToAvroConverters;
 import org.apache.hudi.util.SchemaUtils;
 import org.apache.hudi.util.StreamerUtil;
 import org.slf4j.Logger;
@@ -102,27 +98,25 @@ public class BucketStreamWriteFunction<I> extends StreamWriteFunction<I> {
     this.bucketIndex = new HashMap<>();
     this.incBucketIndex = new HashSet<>();
 
-    Config appConfig = ConfigService.getAppConfig();
-    String apolloConfigKey = this.config.getString(FlinkOptions.APOLLO_CONFIG_KEY);
+    if (config.getBoolean(FlinkOptions.APOLLO_CONFIG_ENABLED)) {
+      Config appConfig = ConfigService.getConfig(config.getString(FlinkOptions.APOLLO_CONFIG_NAMESPACE));
+      String apolloConfigKey = config.getString(FlinkOptions.APOLLO_CONFIG_KEY);
 
-    appConfig.addChangeListener(event -> {
-      if (event.isChanged(apolloConfigKey)) {
-        String schema = appConfig.getProperty(apolloConfigKey, "");
+      appConfig.addChangeListener(event -> {
+        if (event.isChanged(apolloConfigKey)) {
+          String schema = appConfig.getProperty(apolloConfigKey, "");
 
-        // for multiple table
-        JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
-        JSONArray fields = obj.getJSONArray("fields");
-        RowType rowType = SchemaUtils.parseTableRowType(fields);
+          // for multiple table
+          JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
+          JSONArray fields = obj.getJSONArray("fields");
+          RowType rowType = SchemaUtils.parseTableRowType(fields);
+          Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
+          config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
+          this.writeClient = StreamerUtil.createWriteClient(config, getRuntimeContext());
+        }
+      });
+    }
 
-        // for simple table
-        //RowType rowType = SchemaUtils.parseTableRowType(schema);
-
-        Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
-        config.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
-        // writeClient
-        this.writeClient = StreamerUtil.createWriteClient(config, getRuntimeContext());
-      }
-    });
 
   }
 

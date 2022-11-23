@@ -221,7 +221,7 @@ public class StreamWriteOperatorCoordinator
 
         try {
           this.writeClient = StreamerUtil.createWriteClient(conf);
-          initMetadataTable(this.writeClient);
+          //initMetadataTable(this.writeClient);
         } catch (IOException e) {
           e.printStackTrace();
         }

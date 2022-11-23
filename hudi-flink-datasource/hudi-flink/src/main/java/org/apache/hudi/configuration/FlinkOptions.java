@@ -381,7 +381,8 @@ public class FlinkOptions extends HoodieConfig {
       .withDescription("Key generator type, that implements will extract the key out of incoming record");
 
   // for input date format
-  public static final String PARTITION_FORMAT_NORMAL = "yyyy-MM-dd HH:mm:ss";
+  public static final String INPUT_PARTITION_FORMAT_NORMAL = "yyyy-MM-dd HH:mm:ss";
+  public static final String INPUT_PARTITION_FORMAT_WITH_MILLS = "yyyy-MM-dd HH:mm:ss.SSSSSS";
 
   public static final String PARTITION_FORMAT_HOUR = "yyyyMMddHH";
   public static final String PARTITION_FORMAT_DAY = "yyyyMMdd";
@@ -807,6 +808,20 @@ public class FlinkOptions extends HoodieConfig {
       .stringType()
       .noDefaultValue()
       .withDescription("The hive configuration directory, where the hive-site.xml lies in, the file should be put on the client machine");
+
+  // enable apollo config
+  public static final ConfigOption<Boolean> APOLLO_CONFIG_ENABLED = ConfigOptions
+          .key("apollo.config.enabled")
+          .booleanType()
+          .defaultValue(false)
+          .withDescription("Enable read config from apollo");
+
+  // apollo config namespace
+  public static final ConfigOption<String> APOLLO_CONFIG_NAMESPACE = ConfigOptions
+          .key("apollo.config.namespace")
+          .stringType()
+          .defaultValue("application")
+          .withDescription("Apollo config namespace");
 
   // apollo config key
   public static final ConfigOption<String> APOLLO_CONFIG_KEY = ConfigOptions

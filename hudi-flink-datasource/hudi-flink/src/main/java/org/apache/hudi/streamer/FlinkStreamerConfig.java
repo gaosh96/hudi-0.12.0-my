@@ -20,14 +20,12 @@ package org.apache.hudi.streamer;
 
 import com.beust.jcommander.Parameter;
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.contrib.streaming.state.EmbeddedRocksDBStateBackend;
 import org.apache.flink.runtime.state.StateBackend;
 import org.apache.flink.runtime.state.hashmap.HashMapStateBackend;
 import org.apache.hudi.client.utils.OperationConverter;
 import org.apache.hudi.common.model.HoodieCleaningPolicy;
 import org.apache.hudi.common.model.OverwriteWithLatestAvroPayload;
 import org.apache.hudi.common.model.WriteOperationType;
-import org.apache.hudi.common.util.StringUtils;
 import org.apache.hudi.configuration.FlinkOptions;
 import org.apache.hudi.hive.SlashEncodedDayPartitionValueExtractor;
 import org.apache.hudi.index.HoodieIndex;
@@ -341,8 +339,17 @@ public class FlinkStreamerConfig extends Configuration {
       + "Disabled by default for backward compatibility.")
   public Boolean hiveSyncSupportTimestamp = false;
 
+  @Parameter(names = {"--apollo-config-enabled"}, description = "Apollo config enabled.")
+  public Boolean apolloConfigEnabled = false;
+
+  @Parameter(names = {"--apollo-config-namespace"}, description = "Apollo config namespace.")
+  public String apolloConfigNamespace = "application";
+
   @Parameter(names = {"--apollo-config-key"}, description = "Apollo config key.")
   public String apolloConfigKey = "";
+
+  @Parameter(names = {"--config-file-path"}, description = "config file path.")
+  public String configFilePath = "";
 
   /**
    * Transforms a {@code HoodieFlinkStreamer.Config} into {@code Configuration}.
@@ -406,8 +413,8 @@ public class FlinkStreamerConfig extends Configuration {
     conf.setBoolean(FlinkOptions.COMPACTION_ASYNC_ENABLED, config.compactionAsyncEnabled);
     conf.setInteger(FlinkOptions.COMPACTION_TASKS, config.compactionTasks);
     conf.setString(FlinkOptions.COMPACTION_TRIGGER_STRATEGY, config.compactionTriggerStrategy);
-    conf.setInteger(FlinkOptions.COMPACTION_DELTA_COMMITS, config.compactionDeltaCommits);
-    conf.setInteger(FlinkOptions.COMPACTION_DELTA_SECONDS, config.compactionDeltaSeconds);
+    //conf.setInteger(FlinkOptions.COMPACTION_DELTA_COMMITS, config.compactionDeltaCommits);
+    //conf.setInteger(FlinkOptions.COMPACTION_DELTA_SECONDS, config.compactionDeltaSeconds);
     conf.setInteger(FlinkOptions.COMPACTION_MAX_MEMORY, config.compactionMaxMemory);
     conf.setLong(FlinkOptions.COMPACTION_TARGET_IO, config.compactionTargetIo);
     conf.setBoolean(FlinkOptions.CLEAN_ASYNC_ENABLED, config.cleanAsyncEnabled);
@@ -433,7 +440,10 @@ public class FlinkStreamerConfig extends Configuration {
     conf.setBoolean(FlinkOptions.HIVE_SYNC_IGNORE_EXCEPTIONS, config.hiveSyncIgnoreExceptions);
     conf.setBoolean(FlinkOptions.HIVE_SYNC_SKIP_RO_SUFFIX, config.hiveSyncSkipRoSuffix);
     conf.setBoolean(FlinkOptions.HIVE_SYNC_SUPPORT_TIMESTAMP, config.hiveSyncSupportTimestamp);
+
     // apollo config key
+    conf.setBoolean(FlinkOptions.APOLLO_CONFIG_ENABLED, config.apolloConfigEnabled);
+    conf.setString(FlinkOptions.APOLLO_CONFIG_NAMESPACE, config.apolloConfigNamespace);
     conf.setString(FlinkOptions.APOLLO_CONFIG_KEY, config.apolloConfigKey);
     return conf;
   }

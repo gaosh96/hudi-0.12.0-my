@@ -24,6 +24,13 @@ import com.alibaba.fastjson.parser.Feature;
 import com.ctrip.framework.apollo.Config;
 import com.ctrip.framework.apollo.ConfigService;
 import org.apache.avro.Schema;
+import org.apache.flink.api.common.functions.AbstractRichFunction;
+import org.apache.flink.api.common.state.CheckpointListener;
+import org.apache.flink.configuration.Configuration;
+import org.apache.flink.runtime.state.FunctionInitializationContext;
+import org.apache.flink.runtime.state.FunctionSnapshotContext;
+import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
+import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.apache.flink.table.types.logical.RowType;
 import org.apache.hudi.client.HoodieFlinkWriteClient;
 import org.apache.hudi.common.table.timeline.HoodieActiveTimeline;
@@ -33,14 +40,6 @@ import org.apache.hudi.sink.utils.NonThrownExecutor;
 import org.apache.hudi.util.AvroSchemaConverter;
 import org.apache.hudi.util.SchemaUtils;
 import org.apache.hudi.util.StreamerUtil;
-
-import org.apache.flink.api.common.functions.AbstractRichFunction;
-import org.apache.flink.api.common.state.CheckpointListener;
-import org.apache.flink.configuration.Configuration;
-import org.apache.flink.runtime.state.FunctionInitializationContext;
-import org.apache.flink.runtime.state.FunctionSnapshotContext;
-import org.apache.flink.streaming.api.checkpoint.CheckpointedFunction;
-import org.apache.flink.streaming.api.functions.sink.SinkFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,27 +80,27 @@ public class CleanFunction<T> extends AbstractRichFunction
       }
     }
 
-    Config appConfig = ConfigService.getAppConfig();
-    String apolloConfigKey = this.conf.getString(FlinkOptions.APOLLO_CONFIG_KEY);
+    if (conf.getBoolean(FlinkOptions.APOLLO_CONFIG_ENABLED)) {
+      Config appConfig = ConfigService.getConfig(conf.getString(FlinkOptions.APOLLO_CONFIG_NAMESPACE));
+      String apolloConfigKey = conf.getString(FlinkOptions.APOLLO_CONFIG_KEY);
 
-    appConfig.addChangeListener(event -> {
-      if (event.isChanged(apolloConfigKey)) {
-        String schema = appConfig.getProperty(apolloConfigKey, "");
+      appConfig.addChangeListener(event -> {
+        if (event.isChanged(apolloConfigKey)) {
+          String schema = appConfig.getProperty(apolloConfigKey, "");
 
-        // for multiple table
-        JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
-        JSONArray fields = obj.getJSONArray("fields");
-        RowType rowType = SchemaUtils.parseTableRowType(fields);
+          // for multiple table
+          JSONObject obj = JSONObject.parseObject(schema, Feature.OrderedField);
+          JSONArray fields = obj.getJSONArray("fields");
 
-        // for simple table
-        //RowType rowType = SchemaUtils.parseTableRowType(schema);
+          RowType rowType = SchemaUtils.parseTableRowType(fields);
+          Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
+          conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
+          // writeClient
+          this.writeClient = StreamerUtil.createWriteClient(conf, getRuntimeContext());
+        }
+      });
+    }
 
-        Schema avroSchema = AvroSchemaConverter.convertToSchema(rowType);
-        conf.setString(FlinkOptions.SOURCE_AVRO_SCHEMA, avroSchema.toString());
-        // writeClient
-        this.writeClient = StreamerUtil.createWriteClient(conf, getRuntimeContext());
-      }
-    });
 
   }
 

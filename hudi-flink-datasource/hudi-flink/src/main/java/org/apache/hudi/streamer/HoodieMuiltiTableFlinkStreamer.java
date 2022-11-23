@@ -23,6 +23,7 @@ import com.alibaba.fastjson.parser.Feature;
 import com.beust.jcommander.JCommander;
 import com.ctrip.framework.apollo.Config;
 import com.ctrip.framework.apollo.ConfigService;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.flink.api.common.serialization.SimpleStringSchema;
 import org.apache.flink.configuration.Configuration;
@@ -40,7 +41,6 @@ import org.apache.hudi.keygen.NonpartitionedAvroKeyGenerator;
 import org.apache.hudi.keygen.TimestampBasedAvroKeyGenerator;
 import org.apache.hudi.keygen.constant.KeyGeneratorOptions;
 import org.apache.hudi.sink.utils.Pipelines;
-import org.apache.hudi.sync.common.HoodieSyncConfig;
 import org.apache.hudi.util.AvroSchemaConverter;
 import org.apache.hudi.util.MultiTableStringToRowDataMapFunction;
 import org.apache.hudi.util.SchemaUtils;
@@ -48,16 +48,20 @@ import org.apache.kafka.clients.consumer.ConsumerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.File;
+import java.nio.charset.StandardCharsets;
 import java.util.Properties;
+
+import static org.apache.hudi.config.HoodieStorageConfig.PARQUET_WRITE_LEGACY_FORMAT_ENABLED;
 
 /**
  * A utility which can incrementally consume data from Kafka and apply it to the target table.
  * It has the similar functionality with SQL data source except that the source is bind to Kafka
  * and the format is bind to JSON.
  */
-public class HoodieMuiltiTableFlinkStreamerWithApollo {
+public class HoodieMuiltiTableFlinkStreamer {
 
-    private static final Logger LOG = LoggerFactory.getLogger(HoodieMuiltiTableFlinkStreamerWithApollo.class);
+    private static final Logger LOG = LoggerFactory.getLogger(HoodieMuiltiTableFlinkStreamer.class);
 
     public static void main(String[] args) throws Exception {
         StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
@@ -85,29 +89,61 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
         int parallelism = env.getParallelism();
         conf.setLong(FlinkOptions.WRITE_COMMIT_ACK_TIMEOUT, ckpTimeout);
 
-        Config appConfig = ConfigService.getAppConfig();
-        String[] apolloConfigKeys = cfg.apolloConfigKey.split(",");
+        if (cfg.apolloConfigEnabled) {
+            Config appConfig = ConfigService.getConfig(cfg.apolloConfigNamespace);
+            String[] apolloConfigKeys = cfg.apolloConfigKey.split(",");
 
-        for (String apolloConfigKey : apolloConfigKeys) {
-            // important: each hudi table must use different config object
-            Configuration tableConf = conf.clone();
+            for (String apolloConfigKey : apolloConfigKeys) {
+                // important: each hudi table must use different config object
+                Configuration tableConf = conf.clone();
 
-            String config = appConfig.getProperty(apolloConfigKey, "");
-            JSONObject obj = JSONObject.parseObject(config, Feature.OrderedField);
+                String config = appConfig.getProperty(apolloConfigKey, "");
+                JSONObject obj = JSONObject.parseObject(config, Feature.OrderedField);
 
-            RowType rowType = SchemaUtils.parseTableRowType(obj.getJSONArray("fields"));
+                RowType rowType = SchemaUtils.parseTableRowType(obj.getJSONArray("fields"));
 
-            // set apollo key to this table config key
-            tableConf.setString(FlinkOptions.APOLLO_CONFIG_KEY, apolloConfigKey);
+                // set apollo key to this table config key
+                tableConf.setString(FlinkOptions.APOLLO_CONFIG_KEY, apolloConfigKey);
 
-            // init kafka config
-            DataStream<String> kafkaStringDataStream = initKafkaConfig(env, obj.getJSONObject("kafka_config"));
-            DataStream<RowData> dataStream = kafkaStringDataStream.map(new MultiTableStringToRowDataMapFunction(apolloConfigKey));
+                // init kafka config
+                DataStream<String> kafkaStringDataStream = initKafkaConfig(env, obj.getJSONObject("kafka_config"));
+                DataStream<RowData> dataStream = kafkaStringDataStream.map(new MultiTableStringToRowDataMapFunction(obj.toJSONString(), cfg.apolloConfigNamespace, apolloConfigKey));
 
-            // init hudi config and hive sync config
-            initHudiConfig(tableConf, rowType, obj.getJSONObject("hudi_config"), obj.getJSONObject("hive_sync_config"));
+                // init hudi config and hive sync config
+                initHudiConfig(tableConf, rowType, obj.getJSONObject("hudi_config"), obj.getJSONObject("hive_sync_config"));
 
-            writeHudi(tableConf, rowType, parallelism, dataStream);
+                writeHudi(tableConf, rowType, parallelism, dataStream);
+            }
+
+        } else if (StringUtils.isNotBlank(cfg.configFilePath)) {
+            String[] files = cfg.configFilePath.split(",");
+
+            for (String file : files) {
+                // important: each hudi table must use different config object
+                Configuration tableConf = conf.clone();
+
+                String config = FileUtils.readFileToString(new File(file), StandardCharsets.UTF_8);
+
+                JCommander.getConsole().println("Read config from file: " + new File(file).getAbsolutePath());
+                JCommander.getConsole().println("File config: " + config);
+                JCommander.getConsole().println("============================================================");
+
+                JSONObject obj = JSONObject.parseObject(config, Feature.OrderedField);
+
+                RowType rowType = SchemaUtils.parseTableRowType(obj.getJSONArray("fields"));
+
+                // init kafka config
+                DataStream<String> kafkaStringDataStream = initKafkaConfig(env, obj.getJSONObject("kafka_config"));
+                DataStream<RowData> dataStream = kafkaStringDataStream.map(new MultiTableStringToRowDataMapFunction(obj.toJSONString()));
+
+                // init hudi config and hive sync config
+                initHudiConfig(tableConf, rowType, obj.getJSONObject("hudi_config"), obj.getJSONObject("hive_sync_config"));
+
+                writeHudi(tableConf, rowType, parallelism, dataStream);
+            }
+        } else {
+            JCommander.getConsole().println("Either set '--apollo-config-enabled' true or set '--config-file-path' value. ");
+            System.exit(1);
         }
 
         env.execute("multiple table write to hudi");
@@ -142,8 +178,8 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
 
         // compaction config
         conf.setString(FlinkOptions.COMPACTION_TRIGGER_STRATEGY, FlinkOptions.NUM_OR_TIME);
-        conf.setInteger(FlinkOptions.COMPACTION_DELTA_COMMITS, 3);
-        conf.setInteger(FlinkOptions.COMPACTION_DELTA_SECONDS, 60);
+        conf.setInteger(FlinkOptions.COMPACTION_DELTA_COMMITS, hudiConfig.getInteger("compaction_commits"));
+        conf.setInteger(FlinkOptions.COMPACTION_DELTA_SECONDS, hudiConfig.getInteger("compaction_seconds"));
 
         // hive sync config
         conf.setBoolean(FlinkOptions.HIVE_SYNC_ENABLED, true);
@@ -171,15 +207,19 @@ public class HoodieMuiltiTableFlinkStreamerWithApollo {
 
             conf.setString(KeyGeneratorOptions.PARTITIONPATH_FIELD_NAME.key(), conf.getString(FlinkOptions.PARTITION_PATH_FIELD));
             conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_TYPE_FIELD_PROP, TimestampBasedAvroKeyGenerator.TimestampType.DATE_STRING.name());
-            conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_NORMAL);
+            // fix some partition date format is yyyy-MM-dd HH:mm:ss.SSSSSS cause parse exception
+            conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_INPUT_DATE_FORMAT_PROP, StringUtils.join(FlinkOptions.INPUT_PARTITION_FORMAT_NORMAL, ",", FlinkOptions.INPUT_PARTITION_FORMAT_WITH_MILLS));
+            // partition format is yyyy-MM-dd
             conf.setString(KeyGeneratorOptions.Config.TIMESTAMP_OUTPUT_DATE_FORMAT_PROP, FlinkOptions.PARTITION_FORMAT_DASHED_DAY);
-            // fix java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd
+            // fix java.lang.IllegalArgumentException: Partition path created_at=2022-08-03 is not in the form yyyy/mm/dd exception
             conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, HiveStylePartitionValueExtractor.class.getCanonicalName());
         } else {
             // no partition table
             conf.setString(FlinkOptions.KEYGEN_CLASS_NAME, NonpartitionedAvroKeyGenerator.class.getName());
             conf.setString(FlinkOptions.HIVE_SYNC_PARTITION_EXTRACTOR_CLASS_NAME, NonPartitionedExtractor.class.getCanonicalName());
         }
+
+        conf.setBoolean(PARQUET_WRITE_LEGACY_FORMAT_ENABLED.key(), true);
     }
 
     private static void writeHudi(Configuration conf, RowType rowType, int parallelism, DataStream<RowData> dataStream) {
